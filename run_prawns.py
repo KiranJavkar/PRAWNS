@@ -93,7 +93,7 @@ def cpp_dir_input_setup(assemblies, fasta_file_list, ncores, block_pair_binned_p
     create_dir("{}neighbour_pairs/".format(outdir))
     create_dir("{}k_neighbours/".format(outdir))
     create_dir("{}metablocks/".format(outdir))
-    create_dir("{}structual_variants/".format(outdir))
+    create_dir("{}structural_variants/".format(outdir))
     create_dir("{}paired_variants/".format(outdir))
 
 
@@ -469,6 +469,7 @@ if __name__ == "__main__":
     use_oriented_links = args.use_oriented_links #True
     assembly_count = len(input_assemblies)
     feature_partitions = max(ncores, math.ceil(assembly_count/10))
+    assemblies_per_partition = math.ceil(assembly_count/feature_partitions)
     min_component_blocks = args.min_group_blocks
     max_inter_block_pair_separation = args.max_pairing_range
     min_block_size = args.min_block_size
@@ -824,7 +825,7 @@ if __name__ == "__main__":
             delayed(run_cpp_binaries)("./kmer_feature_filtering_and_pairing.o", len(comp_idx_arr)-1, "{}metablocks/".format(results_dir),
                                     min_block_size, "{}assemblywise_blocks/".format(results_dir), idx-1, block_pair_partition_pos_arr[idx-1],
                                     block_pair_partition_pos_arr[idx]-1, max_inter_block_pair_separation, "{}contig_lengths/".format(results_dir),
-                                    block_pair_partitions, total_blocks_count, len(all_connected_components), "{}structual_variants/".format(results_dir),
+                                    block_pair_partitions, total_blocks_count, len(all_connected_components), "{}structural_variants/".format(results_dir),
                                     "{}paired_variants/".format(results_dir), uol, "{}oll/".format(results_dir))
             for idx in range(1, len(block_pair_partition_pos_arr)))
     else:
@@ -832,7 +833,7 @@ if __name__ == "__main__":
             delayed(run_cpp_binaries)("./kmer_feature_filtering_and_pairing.o", len(comp_idx_arr)-1, "{}metablocks/".format(results_dir),
                                     min_block_size, "{}assemblywise_blocks/".format(results_dir), idx-1, block_pair_partition_pos_arr[idx-1],
                                     block_pair_partition_pos_arr[idx]-1, max_inter_block_pair_separation, "{}contig_lengths/".format(results_dir),
-                                    block_pair_partitions, total_blocks_count, len(all_connected_components), "{}structual_variants/".format(results_dir),
+                                    block_pair_partitions, total_blocks_count, len(all_connected_components), "{}structural_variants/".format(results_dir),
                                     "{}paired_variants/".format(results_dir), uol)
             for idx in range(1, len(block_pair_partition_pos_arr)))
     end = time.time() # timeit.timeit()
@@ -842,7 +843,7 @@ if __name__ == "__main__":
     start = time.time()
     Parallel(n_jobs=ncores, prefer="threads")(
         delayed(run_cpp_binaries)(  "./kmer_feature_aggregation_and_filtering.o", partition_idx, assembly_count, assemblies_per_partition,
-                                    "{}structual_variants/".format(results_dir), "{}paired_variants/".format(results_dir), min_presence_count)
+                                    "{}structural_variants/".format(results_dir), "{}paired_variants/".format(results_dir), min_presence_count)
             for partition_idx in range(block_pair_partitions))
     end = time.time() # timeit.timeit()
     print('TIME taken to aggregate partitioned variants matrices:', end-start)
