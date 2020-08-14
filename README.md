@@ -67,4 +67,4 @@ The oriented links can be obtained by running [MetaCarvel](https://github.com/ma
 
 <!-- If you use PRAWNS for your work, please cite it: -->
 
-NOTE: This tool is still under active development and may produce errors while running. Please report any error encountered as a github issue so that we can fix it during the development. For any questions, please email [kjavkar@umd.edu](kjavkar@umd.edu)
+NOTE: This tool is still under active development and may produce errors while running. Please report any error encountered as a github issue so that we can fix it during the development. For any questions, please email kjavkar@umd.edu
