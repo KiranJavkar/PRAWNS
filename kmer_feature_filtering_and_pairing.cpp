@@ -768,10 +768,10 @@ void generate_filtered_features(string metablock_dir, unsigned long group_count,
                     contig_end_feature_tuple = (it_contig_ends_feature_map->second).second;
 
 
-                separation = get<0>(contig_start_feature_tuple) + get<0>(contig_end_feature_tuple); //+ get<2>(it_ol_map->second) //+ get<3>(it_ol_map->second);
+                separation = get<0>(contig_start_feature_tuple) + get<0>(contig_end_feature_tuple);// + round(get<2>(it_ol_map->second)); //+ get<3>(it_ol_map->second);
 
                 // Add the paired feature only if the interfeature separation is acceptable
-                if(separation > max_inter_feature_separation)
+                if(separation > max_inter_feature_separation && (separation + round(get<2>(it_ol_map->second))) > max_inter_feature_separation)
                     continue;
 
                 feature_1_idx = get<1>( contig_start_feature_tuple );
@@ -993,6 +993,86 @@ void save_partitioned_features( list< list< list<tup_uubub> > > feature_partitio
 }
 
 
+void locate_and_save_first_occurrence_features( string metablock_dir, unsigned long group_count, string assembly_blocks_dir,
+                                                unsigned long start_assembly_idx, unsigned long end_assembly_idx, vector<ulli> count_offset,
+                                                string partition_idx_str, map<ulli, string> metablock_tuple_idx_map, string filtered_feature_outdir){
+    cout<<"locate_and_save_first_occurrence_features started: "<<metablock_dir<<" "<<group_count<<" "<<count_offset.size()<<" "<<start_assembly_idx<<"\n";
+    string filename, metablock_tuple_string;
+    unsigned long assembly_idx;
+
+    list< list< tup_uubu > > first_occurrence_coords_outerlist;
+    list< list< tup_uubu > >::iterator it_first_occurrence_coords_outerlist;
+    list< tup_uubu >::iterator it_coords;
+
+    for(assembly_idx=start_assembly_idx; assembly_idx<=end_assembly_idx; assembly_idx++){
+        list< tup_uubu > coords_list;
+        first_occurrence_coords_outerlist.push_back(coords_list);
+    }
+
+    ifstream inFile;
+    ulli metablock_count;
+    tup_uubu current_coords;
+
+    for(unsigned long group_no=0; group_no<group_count; group_no++){
+        it_first_occurrence_coords_outerlist = first_occurrence_coords_outerlist.begin();
+        filename = (metablock_dir + to_string(group_no) + "_fo_" + partition_idx_str);
+        inFile.open( filename.c_str(), ios::binary);
+
+        for(assembly_idx = start_assembly_idx; assembly_idx<=end_assembly_idx; assembly_idx++, it_first_occurrence_coords_outerlist++){
+            inFile.read((char*) (&metablock_count), sizeof(metablock_count));
+
+            while(metablock_count--){
+                inFile.read((char*) (&current_coords), sizeof(current_coords));
+                get<3>(current_coords) += count_offset[group_no];
+                (*it_first_occurrence_coords_outerlist).push_back(current_coords);
+            }
+        }
+
+        inFile.close();
+        remove(filename.c_str());
+    }
+
+    ofstream outFile;
+    ulli metablock_idx, count;
+    short metablock_tuple_string_length;
+    tup_uub coords;
+    
+    assembly_idx = start_assembly_idx;
+    for(it_first_occurrence_coords_outerlist = first_occurrence_coords_outerlist.begin();
+            it_first_occurrence_coords_outerlist != first_occurrence_coords_outerlist.end() && assembly_idx<=end_assembly_idx;
+            it_first_occurrence_coords_outerlist++, assembly_idx++){
+        filename = (metablock_dir + "fo_" + to_string(assembly_idx));
+        outFile.open(filename.c_str(), ios::binary);
+
+        metablock_count = (*it_first_occurrence_coords_outerlist).size();
+        outFile.write((char*) (&metablock_count), sizeof(metablock_count));
+        count = 0;
+
+        for(it_coords = (*it_first_occurrence_coords_outerlist).begin(); it_coords != (*it_first_occurrence_coords_outerlist).end(); it_coords++){
+
+            coords = tup_uub( get<0>( *it_coords), get<1>( *it_coords), get<2>( *it_coords));
+            metablock_idx = get<3>( *it_coords);
+            metablock_tuple_string = metablock_tuple_idx_map[metablock_idx];
+
+            metablock_tuple_string_length = metablock_tuple_string.size();
+
+            outFile.write((char*)(&metablock_tuple_string_length), sizeof(metablock_tuple_string_length));
+            outFile.write( &metablock_tuple_string[0], metablock_tuple_string_length);
+            outFile.write((char*) (&coords), sizeof(coords));
+
+            if(count++%100==0){
+                cout<<metablock_tuple_string<<" "<<metablock_tuple_string_length<<" (";
+                cout<< get<0>( *it_coords) << "," << get<1>( *it_coords) << "," << get<2>( *it_coords) << ") ";
+            }
+        }
+        cout<<"\n";
+        outFile.close();
+    }
+
+    cout<<"locate_and_save_first_occurrence_features ended: "<<metablock_dir<<" "<<group_count<<" "<<count_offset.size()<<" "<<start_assembly_idx<<"\n";
+}
+
+
 int main(int argc, char** argv){
     cout<<"kmer_feature_filtering_and_pairing.cpp "<<argc<<"\n";
     unsigned long group_count = stoul(argv[1]);
@@ -1071,6 +1151,9 @@ int main(int argc, char** argv){
 
     save_partitioned_features(  feature_partition_outerlist, paired_feature_partition_outerlist, metablock_tuple_idx_map,
                                 start_assembly_idx_str, end_assembly_idx_str, filtered_feature_outdir, paired_feature_outdir);
+
+    locate_and_save_first_occurrence_features(metablock_dir, group_count, assembly_blocks_dir, start_assembly_idx, end_assembly_idx,
+                                            count_offset, partition_idx_str, metablock_tuple_idx_map, filtered_feature_outdir);
 
     return 0;
 }

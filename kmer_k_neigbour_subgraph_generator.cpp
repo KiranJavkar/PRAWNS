@@ -191,6 +191,8 @@ void generate_k_neighbour_subgraph( string neighbour_pair_partition_dir, unsigne
         for(it_pair_counts = pair_counts_list.begin(); it_pair_counts != pair_counts_list.end() && count<5; it_pair_counts++, count++)
             cout<<"(("<<(it_pair_counts->first).first<<","<<(it_pair_counts->first).second<<"),"<<it_pair_counts->second<<")\t";
         cout<<"\n";
+
+        remove(filename.c_str());
     }
 
     // Select k neighbours for each block which have the maximum paired occurence with the corresponding block

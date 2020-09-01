@@ -157,6 +157,11 @@ map< puiui, tup_bbffs > load_oriented_links_map(string oll_filename){
     ifstream inFile;
     inFile.open(oll_filename, ios::binary);
 
+    if(inFile.fail()){
+        cerr<<oll_filename<<" cannot be opened\n";
+        return oriented_links_map;
+    }
+
     inFile.read((char*) (&oll_count), sizeof(oll_count));
 
     while(oll_count--){
@@ -1555,15 +1560,19 @@ void save_metablocks(list< Metablock > metablock_list, list< list<unsigned long>
     list< tup_uib > metablock_idx_tuple_list;
     list< list< tup_uubu > > assembly_metablock_coords_outerlist;
 
+    list< list< tup_uubu > > metablock_1st_assembly_coords_outerlist;
+
     list< pulliulli >::iterator it_ends_coords;
     list< bool >::iterator it_orient;
     list< list< pulliulli > >::iterator it_ends_coords_list;
     list< list< bool > >::iterator it_orient_list;
     list< list< tup_uubu > >::iterator it_assembly_metablock_coords_list;
+    list< list< tup_uubu > >::iterator it_metablock_1st_assembly_coords_list;
 
     for(assembly_idx=0; assembly_idx<assembly_count; assembly_idx++){
-        list< tup_uubu > current_metablock_coords_list;
+        list< tup_uubu > current_metablock_coords_list, current_metablock_coords_list2;
         assembly_metablock_coords_outerlist.push_back(current_metablock_coords_list);
+        metablock_1st_assembly_coords_outerlist.push_back(current_metablock_coords_list2);
     }
 
     for(list<Metablock>::iterator it_metablock = metablock_list.begin(); it_metablock != metablock_list.end(); it_metablock++, current_metablock_no++){
@@ -1583,6 +1592,7 @@ void save_metablocks(list< Metablock > metablock_list, list< list<unsigned long>
             it_ends_coords_list = (*it_metablock).contig_ends_coords_list.begin();
             it_orient_list = (*it_metablock).contig_orientations_list.begin();
             it_assembly_metablock_coords_list = assembly_metablock_coords_outerlist.begin();
+            it_metablock_1st_assembly_coords_list = metablock_1st_assembly_coords_outerlist.begin();
 
             if((*it_metablock).contig_ends_coords_list.size() != (*it_metablock).contig_orientations_list.size()){
                 cout<<"SPLIT_CONTIG_METABLOCK_LIST_ISSUE_1!!! : ";
@@ -1600,6 +1610,8 @@ void save_metablocks(list< Metablock > metablock_list, list< list<unsigned long>
                 if(diff>0){
                     assembly_idx += diff;
                     advance(it_assembly_metablock_coords_list, diff);
+                    if(append_idx_tup)
+                        advance(it_metablock_1st_assembly_coords_list, diff);
                 }
                 // while(assembly_idx < (*it_assembly_innerlist)){
                 //     assembly_idx++;
@@ -1617,8 +1629,11 @@ void save_metablocks(list< Metablock > metablock_list, list< list<unsigned long>
                         cout<<(*it_ends_coords_list).size()<<" "<<(*it_orient_list).size()<<"\n";
                     }
 
-                    if(append_idx_tup)
+                    if(append_idx_tup){
                         metablock_idx_tuple_list.push_back( tup_uib( comp_idx, current_comp_metablock, (*it_metablock).is_contig_split ) );
+                        (*it_metablock_1st_assembly_coords_list).push_back( tup_uubu( (it_ends_coords->first), (it_ends_coords->second), (*it_orient),
+                                                                                    current_metablock_no + split_no ) );
+                    }
 
                     (*it_assembly_metablock_coords_list).push_back( tup_uubu( (it_ends_coords->first), (it_ends_coords->second), (*it_orient),
                                                                             current_metablock_no + split_no ) );
@@ -1642,7 +1657,10 @@ void save_metablocks(list< Metablock > metablock_list, list< list<unsigned long>
             it_ends_coords = (*it_metablock).ends_coords_list.begin();
             it_orient = (*it_metablock).orientations_list.begin();
             it_assembly_metablock_coords_list = assembly_metablock_coords_outerlist.begin();
+            it_metablock_1st_assembly_coords_list = metablock_1st_assembly_coords_outerlist.begin();
+
             metablock_idx_tuple_list.push_back( tup_uib( comp_idx, current_comp_metablock, (*it_metablock).is_contig_split ) );
+            append_idx_tup = true;
 
             while(it_orient != (*it_metablock).orientations_list.end()){
 
@@ -1650,6 +1668,8 @@ void save_metablocks(list< Metablock > metablock_list, list< list<unsigned long>
                 if(diff>0){
                     assembly_idx += diff;
                     advance(it_assembly_metablock_coords_list, diff);
+                    if(append_idx_tup)
+                        advance(it_metablock_1st_assembly_coords_list, diff);
                 }
                 // while(assembly_idx < (*it_assembly_innerlist)){
                 //     // outstring += "0,0,0,";
@@ -1662,6 +1682,11 @@ void save_metablocks(list< Metablock > metablock_list, list< list<unsigned long>
 
                 (*it_assembly_metablock_coords_list).push_back( tup_uubu( (it_ends_coords->first), (it_ends_coords->second), (*it_orient),
                                                                         current_metablock_no ) );
+                if(append_idx_tup){
+                    (*it_metablock_1st_assembly_coords_list).push_back( tup_uubu( (it_ends_coords->first), (it_ends_coords->second), (*it_orient),
+                                                                        current_metablock_no ) );
+                    append_idx_tup = false;
+                }
 
                 it_assembly_innerlist++;
                 it_ends_coords++;
@@ -1708,6 +1733,29 @@ void save_metablocks(list< Metablock > metablock_list, list< list<unsigned long>
             outFile.write((char*) (&metablock_count), sizeof(metablock_count));
             for(it_assembly_metablock_coords_innerlist = (*it_assembly_metablock_coords_list).begin();
                     it_assembly_metablock_coords_innerlist != (*it_assembly_metablock_coords_list).end(); it_assembly_metablock_coords_innerlist++){
+                tup_uubu &current_coords = (*it_assembly_metablock_coords_innerlist);
+                outFile.write((char*) (&current_coords), sizeof(current_coords));
+            }
+        }
+        start_assembly_idx += assemblies_per_partition;
+
+        outFile.close();
+    }
+
+
+    start_assembly_idx = 0;
+    it_metablock_1st_assembly_coords_list = metablock_1st_assembly_coords_outerlist.begin();
+
+    for(unsigned long partition_idx=0; partition_idx<partition_count; partition_idx++){
+
+        outFile.open((metablock_outfile_prefix + "fo_" + to_string(partition_idx)).c_str(), ios::binary);
+
+        for(assembly_idx = start_assembly_idx; assembly_idx<assembly_count && assembly_idx<(start_assembly_idx+assemblies_per_partition);
+                assembly_idx++, it_metablock_1st_assembly_coords_list++){
+            metablock_count = (*it_metablock_1st_assembly_coords_list).size();
+            outFile.write((char*) (&metablock_count), sizeof(metablock_count));
+            for(it_assembly_metablock_coords_innerlist = (*it_metablock_1st_assembly_coords_list).begin();
+                    it_assembly_metablock_coords_innerlist != (*it_metablock_1st_assembly_coords_list).end(); it_assembly_metablock_coords_innerlist++){
                 tup_uubu &current_coords = (*it_assembly_metablock_coords_innerlist);
                 outFile.write((char*) (&current_coords), sizeof(current_coords));
             }
@@ -2161,6 +2209,7 @@ int main(int argc, char** argv){
     //for(auto it = comp_reference_assembly_idx_list.begin(); it != comp_reference_assembly_idx_list.end(); it++)
         //cout<< it->second << " , " << it->first /*<< " : " << assembly_block_coords_map[ it->first ].size()*/ << "\n";
 
+    remove(comp_group_filename.c_str());
 
     return 0;
 }

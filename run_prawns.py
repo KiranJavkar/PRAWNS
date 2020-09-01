@@ -87,7 +87,6 @@ def cpp_dir_input_setup(assemblies, fasta_file_list, ncores, block_pair_binned_p
     create_dir("{}kmer_pairs_{}/".format(outdir, min_presence_count))
     create_dir("{}grouped_pairs/".format(outdir))
     create_dir("{}collinear_blocks/".format(outdir))
-    create_dir("{}paired_blocks/".format(outdir))
     create_dir("{}oll/".format(outdir))
     create_dir("{}assemblywise_blocks/".format(outdir))
     create_dir("{}neighbour_pairs/".format(outdir))
@@ -111,6 +110,9 @@ def cpp_dir_input_setup(assemblies, fasta_file_list, ncores, block_pair_binned_p
     if(partition_start<assembly_count):
         opstr = '\n'.join(fasta_file_list[partition_start:assembly_count])+'\n'
         write_file("{}input_binned_assemblies_{}.txt".format(outdir, core_idx), opstr)
+
+    opstr = '\n'.join(fasta_file_list) + '\n'
+    write_file("{}all_assembly_filepaths.txt".format(outdir), opstr)
 
 
     block_pair_step = math.ceil(assembly_count/(float)(block_pair_binned_partitions))
@@ -450,7 +452,9 @@ if __name__ == "__main__":
     parser.add_argument('-R', '--max_pairing_range', type=int, nargs='?', default=100, help="Maximum number of bases between the structural variants " +
                                         "from a genome for paired analysis (default: 100)")
     parser.add_argument('-m', '--mem', nargs='?', default="36000MB", help="Upper limit for RAM memory usage.  " +
-                                        "Can be in mb/MB/gb/GB/tb/TB, default is MB. (default: 36000MB)")
+                                        "Can be in mb/MB/gb/GB/tb/TB (case insensitive), default unit is MB. (default: 36000MB)")
+    parser.add_argument('-g', '--genome_len', nargs='?', default="4M", help="Average genome length.  " +
+                                        "Can be in k/K/m/M/g/G (case insensitive), default unit is M, i.e. 1x10^6 nt. (default: 4M)")
 
     args = parser.parse_args()
 
@@ -468,15 +472,26 @@ if __name__ == "__main__":
     min_presence_count = math.ceil(len(input_assemblies)*min_presence_perc/100.0)
     use_oriented_links = args.use_oriented_links #True
     assembly_count = len(input_assemblies)
-    feature_partitions = max(ncores, math.ceil(assembly_count/10))
-    assemblies_per_partition = math.ceil(assembly_count/feature_partitions)
-    min_component_blocks = args.min_group_blocks
-    max_inter_block_pair_separation = args.max_pairing_range
-    min_block_size = args.min_block_size
-    max_metablock_mismatch = args.max_metablock_mismatch
-    k_neighbours = 4
-    max_neighbour_separation = 5
-    block_pair_partitions = max(feature_partitions, math.ceil(assembly_count/4.0))
+    # feature_partitions = max(ncores, math.ceil(assembly_count/10))
+
+    genome_len = args.genome_len
+    if(genome_len.isdigit()):
+        available_memory = int(genome_len)
+    else:
+        val = genome_len[:-1]
+        units = genome_len[-1]
+        assert(val.isdigit())
+        val = int(val)
+        assert(units in set(['k', 'K', 'm', 'M', 'g', 'G']) )
+        # assert(units[0].isalpha() and units[1].isalpha())
+        units = units.upper()
+        if(units=='M'):
+            genome_len_mb = val
+        elif(units=='G'):
+            genome_len_mb = val*1000
+        else: # K
+            genome_len_mb = val/1000
+
     mem = args.mem
     if(mem.isdigit()):
         available_memory = int(mem)
@@ -495,6 +510,25 @@ if __name__ == "__main__":
             available_memory = val*1000
         else:
             available_memory = val*1000000
+
+    max_assemblies_per_partition = available_memory/ncores - 2500
+    if(max_assemblies_per_partition < 10):
+        max_assemblies_per_partition = 10
+    else:
+        max_assemblies_per_partition = math.floor(math.sqrt(max_assemblies_per_partition/genome_len_mb))
+        max_assemblies_per_partition = max(10, max_assemblies_per_partition)
+
+    feature_partitions = max(ncores, math.ceil(assembly_count/max_assemblies_per_partition))
+
+    assemblies_per_partition = math.ceil(assembly_count/feature_partitions)
+    min_component_blocks = args.min_group_blocks
+    max_inter_block_pair_separation = args.max_pairing_range
+    min_block_size = args.min_block_size
+    max_metablock_mismatch = args.max_metablock_mismatch
+    k_neighbours = 4
+    max_neighbour_separation = 5
+    block_pair_partitions = max(feature_partitions, math.ceil(assembly_count/4.0))
+    seq2write_batch = 1000
 
     if(use_oriented_links):
         oriented_links_paths = input_pd[input_pd.columns[2]].values
@@ -516,7 +550,8 @@ if __name__ == "__main__":
 
     pool = Pool(processes=ncores)
     start = time.time() # timeit.timeit()
-    for core_idx in range(min(ncores, len(binned_assembly_arr))):
+    # for core_idx in range(min(ncores, len(binned_assembly_arr))):
+    for core_idx in range(len(binned_assembly_arr)):
         pool.apply_async(run_cpp_binaries, args=("./kmer_positional_binning.o", "{}input_binned_assemblies_{}.txt".format(results_dir, core_idx),
                                                 kmer_len, "{}binned_kmers/".format(results_dir), binned_assembly_arr[core_idx],
                                                 "{}contig_lengths/".format(results_dir)))
@@ -617,16 +652,19 @@ if __name__ == "__main__":
     pool.join()
     
     total_blocks_count = int(get_total_block_count(filemap_combined_filename, assembly_count+2))
-    block_pair_partitions = max(block_pair_partitions, math.ceil(total_blocks_count*(2 + np.log2(ncores))/available_memory)) #/5000))
+    # block_pair_partitions = max(block_pair_partitions, math.ceil(total_blocks_count*(2 + np.log2(ncores))/available_memory)) #/5000))
+    block_pair_partitions = max(block_pair_partitions, math.ceil(total_blocks_count*(1.5 + np.log2(ncores))/available_memory)) #/5000))
     print("Total individual blocks count:", total_blocks_count)
     print("Modified block_pair_partitions count:", block_pair_partitions)
     print("Available Memory:", available_memory)
+
     # max_pairs_before_dump_limit = math.floor((available_memory - total_blocks_count*ncores*1000)/(1000))
     # print("max_pairs_before_dump_limit Memory:", max_pairs_before_dump_limit)
     # max_pairs_before_dump_limit = math.floor((36000000000 - total_blocks_count*ncores*1000)/(1000))
     # Another approximation: if memory is given in MB ==> max pairs = (mem*1000*1000 - total_blocks_count*ncores*1000)/(ncores*100)
-    max_pairs_before_dump_limit = math.floor((available_memory-1500)*8000/ncores) - math.ceil(total_blocks_count*10*(1 + np.log10(ncores)))
-    print("max_pairs_before_dump_limit Memory:", max_pairs_before_dump_limit)
+
+    # max_pairs_before_dump_limit = math.floor((available_memory-1500)*8000/ncores) - math.ceil(total_blocks_count*10*(1 + np.log10(ncores)))
+    # print("max_pairs_before_dump_limit Memory:", max_pairs_before_dump_limit)
 
 
     pool = Pool(processes=ncores)
@@ -637,14 +675,14 @@ if __name__ == "__main__":
                                                 block_pair_partition_pos_arr[idx]-1, paths_filename, start_block_indices_filename, feature_partitions,
                                                 block_pair_partitions, total_blocks_count, "{}kmer_pairs_{}/".format(results_dir, min_presence_count),
                                                 "{}assemblywise_blocks/".format(results_dir), kmer_len, "{}contig_lengths/".format(results_dir), k_neighbours-1,
-                                                max_neighbour_separation, "{}neighbour_pairs/".format(results_dir), uol, "{}ol_files_{}.txt".format(results_dir, idx-1),
-                                                "{}oll/".format(results_dir)))
+                                                max_neighbour_separation, "{}neighbour_pairs/".format(results_dir), min_block_size, uol,
+                                                "{}ol_files_{}.txt".format(results_dir, idx-1), "{}oll/".format(results_dir)))
         else:
             pool.apply_async(run_cpp_binaries, args=("./kmer_block_and_neighbours_locator.o", "{}col_".format(results_dir), block_pair_partition_pos_arr[idx-1],
                                                 block_pair_partition_pos_arr[idx]-1, paths_filename, start_block_indices_filename, feature_partitions,
                                                 block_pair_partitions, total_blocks_count, "{}kmer_pairs_{}/".format(results_dir, min_presence_count),
                                                 "{}assemblywise_blocks/".format(results_dir), kmer_len, "{}contig_lengths/".format(results_dir), k_neighbours-1,
-                                                max_neighbour_separation, "{}neighbour_pairs/".format(results_dir), uol))
+                                                max_neighbour_separation, "{}neighbour_pairs/".format(results_dir), min_block_size, uol))
     pool.close()
     pool.join()
     end = time.time() # timeit.timeit()
@@ -845,5 +883,44 @@ if __name__ == "__main__":
         delayed(run_cpp_binaries)(  "./kmer_feature_aggregation_and_filtering.o", partition_idx, assembly_count, assemblies_per_partition,
                                     "{}structural_variants/".format(results_dir), "{}paired_variants/".format(results_dir), min_presence_count)
             for partition_idx in range(block_pair_partitions))
+    end = time.time() # timeit.timeit()
+    print('TIME taken to aggregate partitioned variants matrices:', end-start)
+
+
+    start = time.time() # timeit.timeit()
+    part_size = math.ceil(block_pair_partitions/ncores)
+    concat_groups = list(np.arange(0, block_pair_partitions, part_size))
+    if(concat_groups[-1] != block_pair_partitions):
+        concat_groups.append(block_pair_partitions)
+    print(concat_groups)
+    Parallel(n_jobs=ncores, prefer="threads")(
+        delayed(get_intermediate_filemaps)( ' '.join(['{}structural_variants/filtered_block_idx_{}'.format(results_dir, partition_idx)
+                                                    for partition_idx in range(concat_groups[group_idx-1], concat_groups[group_idx])]),
+                                            '{}structural_variants/merged_block_idx_{}'.format(results_dir, group_idx))
+            for group_idx in range(1, len(concat_groups)))
+    instr = ' '.join(['{}structural_variants/merged_block_idx_{}'.format(results_dir, group_idx)
+                              for group_idx in range(1, len(concat_groups))])
+    get_intermediate_filemaps(instr, '{}structural_variants/merged_block_indices'.format(results_dir))
+    end = time.time() # timeit.timeit()
+    print('TIME taken to merge filemaps:', end-start)
+
+
+    # start = time.time()
+    # Parallel(n_jobs=ncores, prefer="threads")(
+    #     delayed(run_cpp_binaries)(  "./kmer_feature_fasta_generator.o", "{}input_binned_assemblies_{}.txt".format(results_dir, core_idx),
+    #                                 binned_assembly_arr[core_idx], seq2write_batch, "{}metablocks/".format(results_dir),
+    #                                 "{}structural_variants/merged_block_indices".format(results_dir), "{}assemblywise_blocks/".format(results_dir),
+    #                                 "{}structural_variants/".format(results_dir), core_idx)
+    #         for core_idx in range(len(binned_assembly_arr)))
+    # end = time.time() # timeit.timeit()
+    # print('TIME taken to aggregate partitioned variants matrices:', end-start)
+
+
+    start = time.time()
+    Parallel(n_jobs=ncores, prefer="threads")(
+        delayed(run_cpp_binaries)(  "./kmer_feature_fasta_generator.o", "{}all_assembly_filepaths.txt".format(results_dir), seq2write_batch,
+                                    "{}metablocks/".format(results_dir), "{}structural_variants/merged_block_indices".format(results_dir),
+                                    "{}assemblywise_blocks/".format(results_dir), "{}structural_variants/".format(results_dir), core_idx, ncores)
+            for core_idx in range(ncores))
     end = time.time() # timeit.timeit()
     print('TIME taken to aggregate partitioned variants matrices:', end-start)

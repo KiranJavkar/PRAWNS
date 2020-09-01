@@ -147,7 +147,7 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
     tup_uubb current_coords;
     tup_uub current_feature_coords, null_coords = make_tuple(0,0,false);
     
-    string feature_tuple_string, filename, opstr_coords, opstr_bool, split_no_str, prev_tuple_string;
+    string feature_tuple_string, filename, opstr_coords, opstr_bool, split_no_str, prev_tuple_string, opstr_block_idx;
 
     map<string, list< tup_uub > > metablock_tuple_idx_coords_map;
     map<ulli, list< tup_uub > > block_idx_coords_map;
@@ -311,7 +311,7 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
         inFile.close();
         start_assembly_idx += assemblies_per_partition;
         end_assembly_idx += assemblies_per_partition;
-        // remove(filename.c_str())''
+        remove(filename.c_str());
     }
 
     cout<<"Metablocks in partition "<<partition_idx_str<<" : "<<metablock_tuple_idx_coords_map.size()<<"\t";
@@ -387,12 +387,14 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
 
 
     it_block_presence_map = block_presence_map.begin();
+    opstr_block_idx = "";
     for(it_block_coords_map = block_idx_coords_map.begin();
             it_block_coords_map != block_idx_coords_map.end() && it_block_presence_map != block_presence_map.end();
             it_block_coords_map++, it_block_presence_map++){
 
         opstr_coords = to_string(it_block_coords_map->first) + ",";
         opstr_bool = to_string(it_block_coords_map->first) + ",";
+        opstr_block_idx += to_string(it_block_coords_map->first) + "\n";
 
         assembly_idx_offset = 0;
         // it_presence = (it_block_presence_map->second).begin();
@@ -432,6 +434,10 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
         outFile << opstr_bool;
         outFile.close();
     }
+
+    outFile.open((filtered_feature_dir + "filtered_block_idx_" + partition_idx_str).c_str(), ios::out);
+    outFile << opstr_block_idx;
+    outFile.close();
 
     cout<<"load_and_aggregate_features ended: "<<filtered_feature_dir<<" "<<assembly_count<<" "<<partition_idx_str<<"\n";
 }
@@ -544,7 +550,7 @@ void load_aggregate_and_filter_paired_features( string paired_feature_dir, unsig
         inFile.close();
         start_assembly_idx += assemblies_per_partition;
         end_assembly_idx += assemblies_per_partition;
-        // remove(filename.c_str())''
+        remove(filename.c_str());
     }
 
     cout<<"Paired features (unfiltered) in partition "<<partition_idx_str<<" : "<<paired_feature_separation_map.size()<<"\t";

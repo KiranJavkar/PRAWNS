@@ -367,8 +367,9 @@ int main(int argc, char** argv){
         save_binned_positional_kmers(kmer_map_list, out_dir, assembly_idx_str);
     }
 
-    string remove_input_file_cmd = "rm -rf " + input_file;
-    system(remove_input_file_cmd.c_str());
+    // string remove_input_file_cmd = "rm -rf " + input_file;
+    // system(remove_input_file_cmd.c_str());
+    remove(input_file.c_str());
 
     end = Clock::now();
     milliseconds diff = duration_cast<milliseconds>(end - start);

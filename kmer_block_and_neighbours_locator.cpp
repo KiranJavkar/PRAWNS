@@ -72,6 +72,7 @@ typedef pair<short,pullib> ps_pullib;
 typedef pair<ulli,pullib> pullipullib;
 typedef pair<unsigned int,unsigned int> puiui;
 typedef tuple<bool,bool,float,float,short> tup_bbffs;
+typedef tuple<ulli,ulli,bool,ulli> tup_uubu;
 
 
 ulli strtoulli(string number){
@@ -430,7 +431,7 @@ void locate_and_save_assemblyspecific_collinear_blocks(list<Assemblyspecific_Blo
                                                     list<ulli> all_start_block_idx_list, unsigned long assembly_idx,
                                                     const char* bool_col_filename, map< tup_psupsubb, pullib > kmer_pair_map,
                                                     short kmer_len, ulli total_block_count, string assembly_blocks_out_dir,
-                                                    map< string, list<Collinear_Block_ends> >& loaded_blocks_map){
+                                                    map< string, list<Collinear_Block_ends> >& loaded_blocks_map, unsigned long min_sv_size){
 
     cout<<"locate_and_save_assemblyspecific_collinear_blocks started: "<<bool_col_filename<<" "<<assembly_idx<<" "<<kmer_pair_map.size()<<"\n";
 
@@ -447,6 +448,11 @@ void locate_and_save_assemblyspecific_collinear_blocks(list<Assemblyspecific_Blo
     Assemblyspecific_Block current_assemblyspecific_block;
     list<Collinear_Block_ends>::iterator it_block_ends;
     list<string> lsplit;
+
+    list<tup_uubu> first_occurrence_blocks_list;
+    list<tup_uubu>::iterator it_first_occurrence_blocks_list;
+    tup_uubu block_coords;
+    tup_uub coords;
 
     unsigned long block_assembly_idx;
 
@@ -539,6 +545,12 @@ void locate_and_save_assemblyspecific_collinear_blocks(list<Assemblyspecific_Blo
                         current_assemblyspecific_block.end_pos = pos_2;
                         // First occurrence of the block is considered to be on the forward strand
                         current_assemblyspecific_block.orientation = true;
+
+                        if( pos_2-pos_1+1 >= min_sv_size){
+                            // All blocks above the min_sv_size that occur for first time in the current assembly
+                            block_coords = tup_uubu(pos_1, pos_2, true, current_block.block_idx);
+                            first_occurrence_blocks_list.push_back(block_coords);
+                        }
                     }
                     else{
                         // pos_1 = kmer_pair_map[current_block.start_kmer_pair_feature_tuple];
@@ -629,6 +641,31 @@ void locate_and_save_assemblyspecific_collinear_blocks(list<Assemblyspecific_Blo
     outFile.open(assembly_blocks_out_dir + to_string(assembly_idx), ios::out);
     outFile << outstring;
     outFile.close();
+
+    ulli block_idx, count=0;
+    block_count = first_occurrence_blocks_list.size();
+    outFile.open(assembly_blocks_out_dir + "fo_"+ to_string(assembly_idx), ios::binary);
+    outFile.write((char*) (&block_count), sizeof(block_count));
+
+    // first_occurrence_blocks_list is sorted on block_idx by design
+
+    for(it_first_occurrence_blocks_list = first_occurrence_blocks_list.begin();
+            it_first_occurrence_blocks_list != first_occurrence_blocks_list.end(); it_first_occurrence_blocks_list++){
+
+        coords = tup_uub( get<0>( *it_first_occurrence_blocks_list), get<1>( *it_first_occurrence_blocks_list),
+                        get<2>( *it_first_occurrence_blocks_list));
+        block_idx = get<3>( *it_first_occurrence_blocks_list);
+
+        outFile.write((char*)(&block_idx), sizeof(block_idx));
+        outFile.write((char*) (&coords), sizeof(coords));
+
+        if(count++%100==0){
+            cout<< block_idx << " (" << get<0>( *it_first_occurrence_blocks_list) << ",";
+            cout<< get<1>( *it_first_occurrence_blocks_list) <<","<< get<2>( *it_first_occurrence_blocks_list) << ") ";
+        }
+    }
+    outFile.close();
+
     cout<<"locate_and_save_assemblyspecific_collinear_blocks ended: "<<assembly_idx<<": "<<block_list.size()<<"\n";
 }
 
@@ -883,14 +920,15 @@ int main(int argc, char** argv){
     short k_neighbours = static_cast<short>(stoi(argv[13]));
     short max_separation = static_cast<short>(stoi(argv[14]));
     string neighbour_pair_partition_outdir = argv[15];
-    bool use_oriented_links = strncmp(argv[16],"1",1)==0;
+    unsigned long min_sv_size = stoul(argv[16]);
+    bool use_oriented_links = strncmp(argv[17],"1",1)==0;
     string oriented_links_outdir, contig_len_filename;
 
     list<string> oriented_links_filename_list;
     if(use_oriented_links){
-        oriented_links_filename_list = get_filepaths(argv[17]);
-        remove(argv[17]);
-        oriented_links_outdir = argv[18];
+        oriented_links_filename_list = get_filepaths(argv[18]);
+        remove(argv[18]);
+        oriented_links_outdir = argv[19];
     }
 
     // cout<<start_assembly_idx_str<<" "<<end_assembly_idx_str<<"\n";
@@ -951,7 +989,7 @@ int main(int argc, char** argv){
 
         locate_and_save_assemblyspecific_collinear_blocks(assemblyspecific_collinear_block_list, all_filename_list, all_start_block_idx_list,
                                                         assembly_idx, bool_col_filename.c_str(), kmer_pair_map, kmer_len, total_block_count,
-                                                        assembly_blocks_out_dir, loaded_blocks_map);
+                                                        assembly_blocks_out_dir, loaded_blocks_map, min_sv_size);
 
         assemblyspecific_collinear_block_list.sort(block_list_comparator);
         cout<<"Sorted collinear block list "<<assembly_idx<<" "<<assemblyspecific_collinear_block_list.size()<<"\n";
