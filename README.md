@@ -25,6 +25,7 @@ usage: run_prawns.py [-h] -i INPUT [-n [NCORES]] [-K [KMER_LEN]]
                      [-p [MIN_PERC]] [-l [USE_ORIENTED_LINKS]]
                      [-b [MIN_GROUP_BLOCKS]] [-M [MAX_METABLOCK_MISMATCH]]
                      [-s [MIN_BLOCK_SIZE]] [-R [MAX_PAIRING_RANGE]] [-m [MEM]]
+                     [-g [GENOME_LEN]]
 
 PRAWNS: Pan-genome representation of whole genomes tool
 
@@ -59,11 +60,24 @@ optional arguments:
                         100)
   -m [MEM], --mem [MEM]
                         Upper limit for RAM memory usage. Can be in
-                        mb/MB/gb/GB/tb/TB, default is MB. (default: 36000MB)
+                        mb/MB/gb/GB/tb/TB (case insensitive), default unit is
+                        MB. (default: 36000MB)
+  -g [GENOME_LEN], --genome_len [GENOME_LEN]
+                        Average genome length. Can be in k/K/m/M/g/G (case
+                        insensitive), default unit is M, i.e. 1x10^6 nt.
+                        (default: 4M)
 ```
 
 The oriented links can be obtained by running [MetaCarvel](https://github.com/marbl/MetaCarvel) with `--keep True`. In addition to this, we recommend using `--bsize` argument to have higher confidence for the oriented links obtained for the sequenced isolate under consideration.
 
+### Description of the output files:
+--TO BE UPDATED--
+-- metablock_coords
+-- metablock_presence_absence
+-- similarly for block
+-- pair_presence_absence
+-- intrapair_separation
+`./kmer_variant_coords_fasta_display.o PRAWNS_results/all_assembly_filepaths.txt 0 2818695 2818729`
 
 <!-- If you use PRAWNS for your work, please cite it: -->
 
