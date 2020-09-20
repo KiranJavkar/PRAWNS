@@ -81,6 +81,7 @@ The oriented links can be obtained by running [MetaCarvel](https://github.com/ma
 
 To get the exact fasta sequence of a variant from a particular genome, run the following command:
 `./kmer_variant_coords_fasta_display.o <PRAWNS_results_dir>/all_assembly_filepaths <genome_number(0-indexed)> <start_coordinate(from the corresponding variant's csv file)> <end_coordinate>`
+
 E.g.: `./kmer_variant_coords_fasta_display.o PRAWNS_results/all_assembly_filepaths.txt 0 2818695 2818729`
 
 <!-- If you use PRAWNS for your work, please cite it: -->
