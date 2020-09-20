@@ -194,7 +194,8 @@ unsigned int get_contig_index_by_coordinate(vector<ulli> contig_ends_vector, ull
 map<ulli, string> get_metablock_tuple_idx_map(string metablock_dir, unsigned long group_count, vector<ulli>& count_offset){
     cout<<"get_metablock_tuple_idx_map started: "<<metablock_dir<<" "<<group_count<<"\n";
     map<ulli, string> metablock_tuple_idx_map;
-    ulli current_idx = 0, metablock_count;
+    ulli current_idx = 0, metablock_count, prev_comp_no = 0;
+    int prev_comp_metablock_no = 0;
     tup_uib current_tuple;
     short split_no = 0 /*, count*/;
     string metablock_tuple_string;
@@ -216,12 +217,25 @@ map<ulli, string> get_metablock_tuple_idx_map(string metablock_dir, unsigned lon
         while(metablock_count--){
             inFile.read((char*) (&current_tuple), sizeof(current_tuple));
 
-            if( get<2>(current_tuple) )
-                split_no++;
-            else
-                split_no = 0;
+            if(split_no > 0){
+
+                if( !get<2>(current_tuple) )
+                    split_no = 0; // current metablock is not a split-metablock
+                else if(prev_comp_no != get<0>(current_tuple))
+                    split_no = 0; // current metablock is a split metablock from a different component
+                else if(prev_comp_metablock_no != get<1>(current_tuple))
+                    split_no = 0; // current metablock is a split metablock from different chain combination of the same component
+            }
 
             metablock_tuple_string = to_string( get<0>(current_tuple) ) + "_" + to_string( get<1>(current_tuple) ) + "_" + to_string(split_no);
+
+            if( get<2>(current_tuple) )
+                split_no++;
+            // else
+            //     split_no = 0;
+
+            prev_comp_no = get<0>(current_tuple);
+            prev_comp_metablock_no = get<1>(current_tuple);
 
             // metablock_tuple_idx_map[current_idx++] = to_string( get<0>(current_tuple) ) + "_" + to_string( get<1>(current_tuple) ) + "_" + to_string(split_no);
 

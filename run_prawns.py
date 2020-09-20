@@ -445,8 +445,8 @@ if __name__ == "__main__":
                                         "if True, 3rd column in input csv should be path to oriented links of corresponding assembly (default: False)")
     parser.add_argument('-b', '--min_group_blocks', type=int, nargs='?', default=3, help="Minimum number of exact matching regions (blocks) that " +
                                         "can be grouped into metablocks across the genomes (default: 3)")
-    parser.add_argument('-M', '--max_metablock_mismatch', type=int, nargs='?', default=25, help="Maximum number of mismatches permitted to group blocks " +
-                                        "into metablocks across the genomes (default: 25)")
+    parser.add_argument('-M', '--max_metablock_mismatch', type=int, nargs='?', default=25, help="Maximum number of mismatches permitted to allow " +
+                                        "merger and extension of metablocks across the genomes (default: 25)")
     parser.add_argument('-s', '--min_block_size', type=int, nargs='?', default=50, help="Smallest size of a block that is to be retained as a " +
                                         "structural variant (default: 50)")
     parser.add_argument('-R', '--max_pairing_range', type=int, nargs='?', default=100, help="Maximum number of bases between the structural variants " +
@@ -546,6 +546,21 @@ if __name__ == "__main__":
                                                                                             oriented_links_paths)
     print(binned_assembly_arr)
     print(block_pair_partition_pos_arr)
+
+    out_str = "#genomes: {}\n".format(len(input_assemblies))
+    out_str += "kmer_len: {}\n".format(kmer_len)
+    out_str += "min_perc: {}\n".format(min_presence_perc)
+    out_str += "#cores: {}\n".format(ncores)
+    out_str += "min_presence_count: {}\n".format(min_presence_count)
+    out_str += "use_oriented_links: {}\n".format(use_oriented_links)
+    out_str += "available_memory: {}\n".format(available_memory)
+    out_str += "min_group_blocks: {}\n".format(min_component_blocks)
+    out_str += "max_pairing_range: {}\n".format(max_inter_block_pair_separation)
+    out_str += "max_metablock_mismatch: {}\n".format(max_metablock_mismatch)
+    out_str += "min_block_size: {}\n".format(min_block_size)
+    out_str += "k_neighbours: {}\n".format(k_neighbours)
+    out_str += "max_neighbour_separation: {}\n".format(max_neighbour_separation)
+    out_str += "genome_len: {}\n".format(genome_len)
 
 
     pool = Pool(processes=ncores)
@@ -658,6 +673,8 @@ if __name__ == "__main__":
     print("Modified block_pair_partitions count:", block_pair_partitions)
     print("Available Memory:", available_memory)
 
+    out_str += "\n\nTotal individual block count: {}\n".format(total_blocks_count)
+
     # max_pairs_before_dump_limit = math.floor((available_memory - total_blocks_count*ncores*1000)/(1000))
     # print("max_pairs_before_dump_limit Memory:", max_pairs_before_dump_limit)
     # max_pairs_before_dump_limit = math.floor((36000000000 - total_blocks_count*ncores*1000)/(1000))
@@ -760,6 +777,8 @@ if __name__ == "__main__":
     end = time.time() # timeit.timeit()
     print('TIME taken to fetch all connected components:', end-start)
 
+    out_str += "\n\nTotal connected component count: {}\n".format(len(all_connected_components))
+
     print(len(all_connected_components), len(active_nodes))
     with open('{}all_connected_components.pkl'.format(results_dir), 'wb') as fp:
             pickle.dump(all_connected_components, fp)
@@ -816,6 +835,9 @@ if __name__ == "__main__":
     print(len(all_connected_components))
     all_connected_components_presence_mat = all_connected_components_presence_mat[component_lengths>=min_component_blocks]
     print(all_connected_components_presence_mat.shape)
+
+    out_str += "\n\nConnected components retained count: {}\n".format(len(all_connected_components))
+    write_file('{}params.txt'.format(results_dir), out_str)
 
 
     group_count = max(ncores, math.ceil(len(all_connected_components)*2/available_memory))
@@ -902,18 +924,92 @@ if __name__ == "__main__":
                               for group_idx in range(1, len(concat_groups))])
     get_intermediate_filemaps(instr, '{}structural_variants/merged_block_indices'.format(results_dir))
     end = time.time() # timeit.timeit()
-    print('TIME taken to merge filemaps:', end-start)
+    print('TIME taken to merge filtered block indices:', end-start)
 
 
-    # start = time.time()
-    # Parallel(n_jobs=ncores, prefer="threads")(
-    #     delayed(run_cpp_binaries)(  "./kmer_feature_fasta_generator.o", "{}input_binned_assemblies_{}.txt".format(results_dir, core_idx),
-    #                                 binned_assembly_arr[core_idx], seq2write_batch, "{}metablocks/".format(results_dir),
-    #                                 "{}structural_variants/merged_block_indices".format(results_dir), "{}assemblywise_blocks/".format(results_dir),
-    #                                 "{}structural_variants/".format(results_dir), core_idx)
-    #         for core_idx in range(len(binned_assembly_arr)))
-    # end = time.time() # timeit.timeit()
-    # print('TIME taken to aggregate partitioned variants matrices:', end-start)
+    start = time.time() # timeit.timeit()
+
+    Parallel(n_jobs=ncores, prefer="threads")(
+        delayed(get_intermediate_filemaps)( ' '.join(['{}structural_variants/metablock_coords_{}'.format(results_dir, partition_idx)
+                                                    for partition_idx in range(concat_groups[group_idx-1], concat_groups[group_idx])]),
+                                            '{}structural_variants/merged_metablock_coords_{}'.format(results_dir, group_idx))
+            for group_idx in range(1, len(concat_groups)))
+
+    Parallel(n_jobs=ncores, prefer="threads")(
+        delayed(get_intermediate_filemaps)( ' '.join(['{}structural_variants/metablock_presence_absence_{}'.format(results_dir, partition_idx)
+                                                    for partition_idx in range(concat_groups[group_idx-1], concat_groups[group_idx])]),
+                                            '{}structural_variants/merged_metablock_presence_absence_{}'.format(results_dir, group_idx))
+            for group_idx in range(1, len(concat_groups)))
+
+    instr_list = [' '.join(['{}structural_variants/merged_metablock_coords_{}'.format(results_dir, group_idx)
+                                  for group_idx in range(1, len(concat_groups))])]
+    outstr_list = ['{}metablock_coords.csv'.format(results_dir)]
+
+    instr_list.append(' '.join(['{}structural_variants/merged_metablock_presence_absence_{}'.format(results_dir, group_idx)
+                              for group_idx in range(1, len(concat_groups))]))
+    outstr_list.append('{}metablock_presence_absence.csv'.format(results_dir))
+
+    Parallel(n_jobs=w, prefer="threads")(
+        delayed(get_intermediate_filemaps)(instr_list[idx], outstr_list[idx]) for idx in range(w))
+
+    end = time.time() # timeit.timeit()
+    print('TIME taken to merge metablock coords and presence:', end-start)
+
+
+    start = time.time() # timeit.timeit()
+    Parallel(n_jobs=ncores, prefer="threads")(
+        delayed(get_intermediate_filemaps)( ' '.join(['{}structural_variants/block_coords_{}'.format(results_dir, partition_idx)
+                                                    for partition_idx in range(concat_groups[group_idx-1], concat_groups[group_idx])]),
+                                            '{}structural_variants/merged_block_coords_{}'.format(results_dir, group_idx))
+            for group_idx in range(1, len(concat_groups)))
+
+    Parallel(n_jobs=ncores, prefer="threads")(
+        delayed(get_intermediate_filemaps)( ' '.join(['{}structural_variants/block_presence_absence_{}'.format(results_dir, partition_idx)
+                                                    for partition_idx in range(concat_groups[group_idx-1], concat_groups[group_idx])]),
+                                            '{}structural_variants/merged_block_presence_absence_{}'.format(results_dir, group_idx))
+            for group_idx in range(1, len(concat_groups)))
+
+    instr_list = [' '.join(['{}structural_variants/merged_block_coords_{}'.format(results_dir, group_idx)
+                                  for group_idx in range(1, len(concat_groups))])]
+    outstr_list = ['{}retained_block_coords.csv'.format(results_dir)]
+
+    instr_list.append(' '.join(['{}structural_variants/merged_block_presence_absence_{}'.format(results_dir, group_idx)
+                              for group_idx in range(1, len(concat_groups))]))
+    outstr_list.append('{}retained_block_presence_absence.csv'.format(results_dir))
+
+    Parallel(n_jobs=w, prefer="threads")(
+        delayed(get_intermediate_filemaps)(instr_list[idx], outstr_list[idx]) for idx in range(w))
+
+    end = time.time() # timeit.timeit()
+    print('TIME taken to merge filtered block coords and presence:', end-start)
+
+
+    start = time.time() # timeit.timeit()
+    Parallel(n_jobs=ncores, prefer="threads")(
+        delayed(get_intermediate_filemaps)( ' '.join(['{}paired_variants/intrapair_separation_{}'.format(results_dir, partition_idx)
+                                                    for partition_idx in range(concat_groups[group_idx-1], concat_groups[group_idx])]),
+                                            '{}paired_variants/merged_intrapair_separation_{}'.format(results_dir, group_idx))
+            for group_idx in range(1, len(concat_groups)))
+
+    Parallel(n_jobs=ncores, prefer="threads")(
+        delayed(get_intermediate_filemaps)( ' '.join(['{}paired_variants/pair_presence_absence_{}'.format(results_dir, partition_idx)
+                                                    for partition_idx in range(concat_groups[group_idx-1], concat_groups[group_idx])]),
+                                            '{}paired_variants/merged_pair_presence_absence_{}'.format(results_dir, group_idx))
+            for group_idx in range(1, len(concat_groups)))
+
+    instr_list = [' '.join(['{}paired_variants/merged_intrapair_separation_{}'.format(results_dir, group_idx)
+                                  for group_idx in range(1, len(concat_groups))])]
+    outstr_list = ['{}intrapair_separation.csv'.format(results_dir)]
+
+    instr_list.append(' '.join(['{}paired_variants/merged_pair_presence_absence_{}'.format(results_dir, group_idx)
+                              for group_idx in range(1, len(concat_groups))]))
+    outstr_list.append('{}pair_presence_absence.csv'.format(results_dir))
+
+    Parallel(n_jobs=w, prefer="threads")(
+        delayed(get_intermediate_filemaps)(instr_list[idx], outstr_list[idx]) for idx in range(w))
+    
+    end = time.time() # timeit.timeit()
+    print('TIME taken to merge filtered block coords and presence:', end-start)
 
 
     start = time.time()
@@ -922,5 +1018,13 @@ if __name__ == "__main__":
                                     "{}metablocks/".format(results_dir), "{}structural_variants/merged_block_indices".format(results_dir),
                                     "{}assemblywise_blocks/".format(results_dir), "{}structural_variants/".format(results_dir), core_idx, ncores)
             for core_idx in range(ncores))
+
+    instr_list = [  ' '.join(['{}structural_variants/metablocks_{}.fasta'.format(results_dir, core_idx) for core_idx in range(ncores)]),
+                    ' '.join(['{}structural_variants/blocks_{}.fasta'.format(results_dir, core_idx) for core_idx in range(ncores)])]
+    outstr_list = ['metablocks.fasta', 'retained_blocks.fasta']
+
+    Parallel(n_jobs=w, prefer="threads")(
+        delayed(get_intermediate_filemaps)(instr_list[idx], '{}{}'.format(results_dir, outstr_list[idx]))
+            for idx in range(w))
     end = time.time() # timeit.timeit()
-    print('TIME taken to aggregate partitioned variants matrices:', end-start)
+    print('TIME taken to generate variant fasta sequences:', end-start)

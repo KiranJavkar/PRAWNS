@@ -148,6 +148,7 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
     tup_uub current_feature_coords, null_coords = make_tuple(0,0,false);
     
     string feature_tuple_string, filename, opstr_coords, opstr_bool, split_no_str, prev_tuple_string, opstr_block_idx;
+    char split_no_char;
 
     map<string, list< tup_uub > > metablock_tuple_idx_coords_map;
     map<ulli, list< tup_uub > > block_idx_coords_map;
@@ -328,8 +329,11 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
         split_pos = (it_metablock_coords_map->first).find("_");
         split_pos = (it_metablock_coords_map->first).find("_", split_pos+1);
 
-        split_no_str = (it_metablock_coords_map->first).substr(split_pos+1);
-        is_new_metablock = (split_no_str=="0");
+        // split_no_str = (it_metablock_coords_map->first).substr(split_pos+1);
+        // is_new_metablock = (split_no_str=="0");
+
+        split_no_char = (it_metablock_coords_map->first)[split_pos+1];
+        is_new_metablock = (split_no_char=='0');
 
         opstr_coords = it_metablock_coords_map->first + ",";
         if(is_new_metablock)
@@ -363,9 +367,9 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
 
         while(assembly_idx_offset++ < assembly_count){
             opstr_coords += "0,0,0,";
-            opstr_bool += "0,";
-            // if(is_new_metablock)
-            //     opstr_bool += "0,";
+            // opstr_bool += "0,";
+            if(is_new_metablock)
+                opstr_bool += "0,";
         }
 
         opstr_coords.pop_back();
@@ -375,12 +379,14 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
         outFile << opstr_coords;
         outFile.close();
 
-        opstr_bool.pop_back();
-        opstr_bool += "\n";
+        if(is_new_metablock){
+            opstr_bool.pop_back();
+            opstr_bool += "\n";
 
-        outFile.open((filtered_feature_dir + "metablock_presence_absence_" + partition_idx_str).c_str(), ios::app);
-        outFile << opstr_bool;
-        outFile.close();
+            outFile.open((filtered_feature_dir + "metablock_presence_absence_" + partition_idx_str).c_str(), ios::app);
+            outFile << opstr_bool;
+            outFile.close();
+        }
     }
 
     cout<<"Metablocks saved\n";

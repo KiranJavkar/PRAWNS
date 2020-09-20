@@ -49,8 +49,9 @@ optional arguments:
                         can be grouped into metablocks across the genomes
                         (default: 3)
   -M [MAX_METABLOCK_MISMATCH], --max_metablock_mismatch [MAX_METABLOCK_MISMATCH]
-                        Maximum number of mismatches permitted to group blocks
-                        into metablocks across the genomes (default: 25)
+                        Maximum number of mismatches permitted to allow merger
+                        and extension of metablocks across the genomes
+                        (default: 25)
   -s [MIN_BLOCK_SIZE], --min_block_size [MIN_BLOCK_SIZE]
                         Smallest size of a block that is to be retained as a
                         structural variant (default: 50)
@@ -77,7 +78,10 @@ The oriented links can be obtained by running [MetaCarvel](https://github.com/ma
 -- similarly for block
 -- pair_presence_absence
 -- intrapair_separation
-`./kmer_variant_coords_fasta_display.o PRAWNS_results/all_assembly_filepaths.txt 0 2818695 2818729`
+
+To get the exact fasta sequence of a variant from a particular genome, run the following command:
+`./kmer_variant_coords_fasta_display.o <PRAWNS_results_dir>/all_assembly_filepaths <genome_number(0-indexed)> <start_coordinate(from the corresponding variant's csv file)> <end_coordinate>`
+E.g.: `./kmer_variant_coords_fasta_display.o PRAWNS_results/all_assembly_filepaths.txt 0 2818695 2818729`
 
 <!-- If you use PRAWNS for your work, please cite it: -->
 

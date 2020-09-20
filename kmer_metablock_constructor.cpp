@@ -1252,7 +1252,8 @@ list< Metablock > generate_metablocks(list< Chain > all_component_chains_list, l
 
                             diff_effective = diff_metablock_contig + diff_chain_contig + (long)( get<2>(contig_orientation_tuple));
 
-                            if(diff_effective > max_neighbour_separation){
+                            // Taking into account the perturbations in the contig separations via both separation mean and std. dev
+                            if(diff_effective > max_neighbour_separation && (diff_effective + (long)( get<3>(contig_orientation_tuple) )) > max_neighbour_separation){
                                 is_chain_extension_valid = false;
                                 cout<<"\nLARGE_INTERCONTIG_INTERCHAIN_SEPARATION: "<< (*it_metablock_coord) << " " << (*it_chain_coord);
                                 cout<<" " << (*it_chain_other_end_coord) << " " << diff_metablock_contig << " " << diff_chain_contig << " ";
