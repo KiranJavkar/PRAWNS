@@ -72,12 +72,12 @@ optional arguments:
 The oriented links can be obtained by running [MetaCarvel](https://github.com/marbl/MetaCarvel) with `--keep True`. In addition to this, we recommend using `--bsize` argument to have higher confidence for the oriented links obtained for the sequenced isolate under consideration.
 
 ### Description of the output files:
---TO BE UPDATED--
--- metablock_coords
--- metablock_presence_absence
--- similarly for block
--- pair_presence_absence
--- intrapair_separation
++ --TO BE UPDATED--
+- metablock_coords
+- metablock_presence_absence
+- similarly for block
+- pair_presence_absence
+- intrapair_separation
 
 To get the exact fasta sequence of a variant from a particular genome, run the following command:
 `./kmer_variant_coords_fasta_display.o <PRAWNS_results_dir>/all_assembly_filepaths <genome_number(0-indexed)> <start_coordinate(from the corresponding variant's csv file)> <end_coordinate>`
