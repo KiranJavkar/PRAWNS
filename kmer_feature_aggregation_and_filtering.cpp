@@ -173,7 +173,7 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
     ifstream inFile;
     ofstream outFile;
 
-    while(start_assembly_idx <= assembly_count){
+    while(start_assembly_idx < assembly_count){
         if(end_assembly_idx >= assembly_count)
             end_assembly_idx = assembly_count - 1;
 
@@ -475,7 +475,7 @@ void load_aggregate_and_filter_paired_features( string paired_feature_dir, unsig
     ifstream inFile;
     ofstream outFile;
 
-    while(start_assembly_idx <= assembly_count){
+    while(start_assembly_idx < assembly_count){
         if(end_assembly_idx >= assembly_count)
             end_assembly_idx = assembly_count - 1;
 
