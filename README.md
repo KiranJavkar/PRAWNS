@@ -1,6 +1,6 @@
 # PRAWNS: Pan-genome representation of whole genomes tool
 
-Given a collection of whole genomes for the isolates of a bacterial species or species complex (similar genomes), the tool generates an efficient pan-genome representation for the corresponding isolates. The input genomes could be draft assemblies or complete genomes. The generated pan-genome provides a concise list of structural variants identified across these isolates, which can then be used in a downstream analysis. In addition to the detection of structural variants, the pan-genome also locates the variants that are collocated across multiple isolates - such paired occurrences and the separation between the corresponding structural variants are also provided which can aide the downstream analysis.
+Given a collection of whole genomes for the closely related isolates (e.g. from a bacterial species or species complex), the tool generates an efficient pan-genome representation for the corresponding isolates. The input genomes could be draft assemblies or complete genomes. The generated pan-genome provides a concise list of structural variants identified across these isolates, which can then be used in a downstream analysis. In addition to the detection of structural variants, the pan-genome also locates the variants that are collocated across multiple isolates—such paired occurrences and the separation between the corresponding structural variants are also provided which can aide the downstream analysis.
 
 ### Dependencies
 1. Python 3.5 or later
