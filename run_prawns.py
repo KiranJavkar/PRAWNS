@@ -213,6 +213,20 @@ def combine_intermediate_filemaps(in_dir, outdir='.'):
         print("combine_intermediate_filemaps error :", cmd, e)
 
 
+def vertical_combine_filemaps(filenames_str, outfilename, merge_separator=','):
+    cmd = "echo {}| xargs paste -d{} > {}".format(filenames_str, merge_separator, outfilename)
+    print("vertical_combine_filemaps : ", cmd)
+    # rm_cmd = "rm -f {}".format(filenames_str)
+    try:
+        p = subprocess.Popen(cmd, shell=True)
+        p.wait()
+        print("vertical_combine_filemaps combined")
+        p = subprocess.Popen(rm_cmd, shell=True)
+        p.wait()
+    except Exception as e:
+        print("vertical_combine_filemaps error :", cmd, e)
+
+
 def get_hamming_distance(df, assembly_count, start_idx=1, end_idx=-1):
     nrows = df.shape[0]
     hamming_dist_mat = np.zeros((assembly_count, assembly_count))
@@ -476,7 +490,7 @@ if __name__ == "__main__":
 
     genome_len = args.genome_len
     if(genome_len.isdigit()):
-        available_memory = int(genome_len)
+        genome_len_mb = int(genome_len)
     else:
         val = genome_len[:-1]
         units = genome_len[-1]
@@ -511,12 +525,19 @@ if __name__ == "__main__":
         else:
             available_memory = val*1000000
 
-    max_assemblies_per_partition = available_memory/ncores - 2500
-    if(max_assemblies_per_partition < 10):
-        max_assemblies_per_partition = 10
+    # max_assemblies_per_partition = available_memory/ncores - 2500
+    # if(max_assemblies_per_partition < 10):
+    #     max_assemblies_per_partition = 10
+    # else:
+    #     max_assemblies_per_partition = math.floor(math.sqrt(max_assemblies_per_partition/genome_len_mb))
+    #     max_assemblies_per_partition = max(10, max_assemblies_per_partition)
+
+    max_assemblies_per_partition = (available_memory/ncores - 2250)
+    if(max_assemblies_per_partition < 2):
+        max_assemblies_per_partition = 2
     else:
         max_assemblies_per_partition = math.floor(math.sqrt(max_assemblies_per_partition/genome_len_mb))
-        max_assemblies_per_partition = max(10, max_assemblies_per_partition)
+        max_assemblies_per_partition = max(2, max_assemblies_per_partition)
 
     feature_partitions = max(ncores, math.ceil(assembly_count/max_assemblies_per_partition))
 
@@ -668,7 +689,10 @@ if __name__ == "__main__":
     
     total_blocks_count = int(get_total_block_count(filemap_combined_filename, assembly_count+2))
     # block_pair_partitions = max(block_pair_partitions, math.ceil(total_blocks_count*(2 + np.log2(ncores))/available_memory)) #/5000))
-    block_pair_partitions = max(block_pair_partitions, math.ceil(total_blocks_count*(1.5 + np.log2(ncores))/available_memory)) #/5000))
+    length_based_adjustment = 1
+    if(genome_len_mb > 4):
+        length_based_adjustment = genome_len_mb/4
+    block_pair_partitions = max(block_pair_partitions, math.ceil(total_blocks_count*(1.5 + np.log2(ncores))*length_based_adjustment/available_memory)) #/5000))
     print("Total individual blocks count:", total_blocks_count)
     print("Modified block_pair_partitions count:", block_pair_partitions)
     print("Available Memory:", available_memory)
@@ -704,6 +728,13 @@ if __name__ == "__main__":
     pool.join()
     end = time.time() # timeit.timeit()
     print('TIME taken to locate neighbour pairs per partition:', end-start)
+
+    Parallel(n_jobs=ncores, prefer="threads")(
+        delayed(run_cpp_binaries)("./remove_files.o", paths_filename, core_idx, ncores)
+        for core_idx in range(ncores))
+        
+    end = time.time() # timeit.timeit()
+    print('TIME taken to remove collinear block files:', end-start)
 
 
     pool = Pool(processes=ncores)
@@ -900,13 +931,57 @@ if __name__ == "__main__":
     print('TIME taken to locate structural variants:', end-start)
 
 
+    # start = time.time()
+    # Parallel(n_jobs=ncores, prefer="threads")(
+    #     delayed(run_cpp_binaries)(  "./kmer_feature_aggregation_and_filtering.o", partition_idx, assembly_count, assemblies_per_partition,
+    #                                 "{}structural_variants/".format(results_dir), "{}paired_variants/".format(results_dir), min_presence_count)
+    #         for partition_idx in range(block_pair_partitions))
+    # end = time.time() # timeit.timeit()
+    # print('TIME taken to aggregate partitioned variants matrices:', end-start)
+
+
     start = time.time()
     Parallel(n_jobs=ncores, prefer="threads")(
-        delayed(run_cpp_binaries)(  "./kmer_feature_aggregation_and_filtering.o", partition_idx, assembly_count, assemblies_per_partition,
+        delayed(run_cpp_binaries)(  "./kmer_feature_aggregation_and_pair_filtering.o", partition_idx, assembly_count, assemblies_per_partition,
                                     "{}structural_variants/".format(results_dir), "{}paired_variants/".format(results_dir), min_presence_count)
             for partition_idx in range(block_pair_partitions))
     end = time.time() # timeit.timeit()
     print('TIME taken to aggregate partitioned variants matrices:', end-start)
+
+
+    start = time.time()
+    if(use_oriented_links):
+        Parallel(n_jobs=ncores, prefer="threads")(
+            delayed(run_cpp_binaries)(  "./kmer_distant_feature_pair_updating.o", block_pair_partition_pos_arr[idx-1], block_pair_partition_pos_arr[idx]-1,
+                                        block_pair_partitions, max_inter_block_pair_separation, "{}structural_variants/".format(results_dir),
+                                        "{}paired_variants/".format(results_dir), "{}contig_lengths/".format(results_dir), uol, "{}oll/".format(results_dir))
+            for idx in range(1, len(block_pair_partition_pos_arr)))
+    else:
+        Parallel(n_jobs=ncores, prefer="threads")(
+            delayed(run_cpp_binaries)(  "./kmer_distant_feature_pair_updating.o", block_pair_partition_pos_arr[idx-1], block_pair_partition_pos_arr[idx]-1,
+                                        block_pair_partitions, max_inter_block_pair_separation, "{}structural_variants/".format(results_dir),
+                                        "{}paired_variants/".format(results_dir), "{}contig_lengths/".format(results_dir), uol)
+            for idx in range(1, len(block_pair_partition_pos_arr)))
+    end = time.time() # timeit.timeit()
+    print('TIME taken to update partitioned paired variants:', end-start)
+
+
+    start = time.time()
+    Parallel(n_jobs=ncores, prefer="threads")(
+        delayed(vertical_combine_filemaps)( ' '.join([ "{}paired_variants/{}_{}_{}_updated_separation".format(results_dir,
+                                                            block_pair_partition_pos_arr[idx-1], block_pair_partition_pos_arr[idx]-1, partition_idx)
+                                                    for idx in range(1, len(block_pair_partition_pos_arr)) ]),
+                                            '{}paired_variants/intrapair_separation_{}'.format(results_dir, partition_idx))
+        for partition_idx in range(block_pair_partitions))
+
+    Parallel(n_jobs=ncores, prefer="threads")(
+        delayed(vertical_combine_filemaps)( ' '.join([ "{}paired_variants/{}_{}_{}_updated_presence".format(results_dir,
+                                                            block_pair_partition_pos_arr[idx-1], block_pair_partition_pos_arr[idx]-1, partition_idx)
+                                                    for idx in range(1, len(block_pair_partition_pos_arr)) ]),
+                                            '{}paired_variants/pair_presence_absence_{}'.format(results_dir, partition_idx))
+        for partition_idx in range(block_pair_partitions))
+    end = time.time() # timeit.timeit()
+    print('TIME taken to merge partitioned paired variant matrices:', end-start)
 
 
     start = time.time() # timeit.timeit()
