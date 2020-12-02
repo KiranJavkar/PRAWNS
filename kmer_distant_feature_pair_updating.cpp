@@ -286,6 +286,7 @@ void load_features_and_update(  string filtered_feature_dir, string paired_featu
 
     tup_sbsbbb pair_tuple;
     bool is_1_metablock, is_2_metablock, relative_orientation_1, relative_orientation_2, presence, valid;
+    pbb pair_presence;
     pbb update_presence_pair;
     unsigned int contig_idx_1, contig_idx_2;
     tup_uub coords_1, coords_2;
@@ -434,6 +435,8 @@ void load_features_and_update(  string filtered_feature_dir, string paired_featu
             for(assembly_idx=start_assembly_idx; assembly_idx <= end_assembly_idx; assembly_idx++){
                 inFile.read((char*)(&presence), sizeof(presence));
                 pair_presence_pair_innerlist.push_back(pbb(presence, false));
+                // inFile.read((char*)(&pair_presence), sizeof(pair_presence));
+                // pair_presence_pair_innerlist.push_back(pair_presence);
             }
             current_pair_presence_pair_list.push_back(pair_presence_pair_innerlist);
         }
@@ -683,6 +686,16 @@ void load_features_and_update(  string filtered_feature_dir, string paired_featu
                     }
                 }
                 else{
+                    // if(update_presence_pair.second){
+                    //     // inital pair found was distant
+                    //     opstr_presence += "2,";
+                    // }
+                    // else{
+                    //     // near pair already found
+                    //     // (*it_outstrings_presence) += "1,";
+                    //     opstr_presence += "1,";
+                    // }
+
                     // near pair already found
                     // (*it_outstrings_presence) += "1,";
                     opstr_presence += "1,";
@@ -783,6 +796,14 @@ void load_features_and_update(  string filtered_feature_dir, string paired_featu
                 inFile.read((char*)(&separation), sizeof(separation));
 
                 cout<<"\t"<<separation;
+
+                if(!(*it_pair_presence_pair_innerlist).first && !(*it_pair_presence_pair_innerlist).second){
+                    if(separation >0){
+                        cout<<"ERROR!!! FEAUTRE_PAIR_ERROR!!! PAIR ABSENT SEPARATION PRESENT!!! "<<assembly_idx<<" ";
+                        cout<<"("<<(*it_pair_presence_pair_innerlist).first<<","<<(*it_pair_presence_pair_innerlist).second<<") ";
+                        cout<<separation<<"\n";
+                    }
+                }
                 
                 if( (*it_pair_presence_pair_innerlist).second ){
                     // Detected distant pair

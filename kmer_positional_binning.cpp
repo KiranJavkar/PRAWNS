@@ -268,7 +268,7 @@ void generate_binned_positional_kmers(string fasta_filename, list< map< ulli, pu
                 }
         }
     }
-    outFile<<(position-1)<<"\n"; // End position of last contig
+    outFile<<(position + kmer_list.size() - 1)<<"\n"; // End position of last contig
 
     cout<<"Repeated kmers: "<<remove_kmer_set.size()<<"\n";
 

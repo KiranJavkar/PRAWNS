@@ -17,6 +17,7 @@
 #include <set>
 #include <utility>
 #include <math.h>
+#include <iomanip>
 
 using Clock = std::chrono::steady_clock;
 using std::chrono::time_point;
@@ -332,7 +333,7 @@ void generate_filtered_features(string metablock_dir, unsigned long group_count,
     cout<<max_inter_feature_separation<<" "<<use_oriented_links<<" "<<oriented_links_dir<<" "<<contig_len_dir<<" "<<max_metablock_idx.size()<<"\n";
 
     tup_uubu current_coords;
-    ulli metablock_count, current_metablock_size, prev_contig_end;
+    ulli metablock_count, current_metablock_size, prev_contig_end, current_total_coverage, last_pos;
     unsigned long assembly_idx, assembly_idx_offset=0;
     list< list< tup_uubub > > feature_coords_outerlist, block_coords_outerlist;
     list< list< tup_uubub > >::iterator it_coords_outerlist, it_block_coords_outerlist;
@@ -352,7 +353,7 @@ void generate_filtered_features(string metablock_dir, unsigned long group_count,
     list<string> lines, lsplit;
     list<string>::iterator it_coords;
     ulli current_block_idx, diff, start_pos, end_pos, discard_count, previous_contig_end, distance, feature_count, paired_feature_count;
-    bool orientation, is_new_contig;
+    bool orientation, is_new_contig, was_last_metablock;
     long separation;
     list< tup_uubub > previous_features;
     list< tup_uubub >::iterator it_prev_feat;
@@ -517,9 +518,21 @@ void generate_filtered_features(string metablock_dir, unsigned long group_count,
             //     cout<<get<0>( *it_block_coords_innerlist)<<" "<<get<1>( *it_block_coords_innerlist)<<"\n";
             // }
 
+            if(it_coords_innerlist != (*it_coords_outerlist).end()){
+                // block starts before metablock start
+                if(get<0>( *it_coords_innerlist) > get<0>( *it_block_coords_innerlist)){
+                    (*it_coords_outerlist).insert( it_coords_innerlist, *it_block_coords_innerlist );
+                    continue;
+                }
+
+                // block contained inside metablock
+                if(get<1>( *it_coords_innerlist) >= get<1>( *it_block_coords_innerlist))
+                    continue;
+            }
+
             // while metablock end is less than current block end, increment the metablock iterator
-            // note that if the metablock and block ends match, block is contained inside the metablock - this case is handled in the later if clause
-            while( it_coords_innerlist != (*it_coords_outerlist).end() && get<1>( *it_coords_innerlist) < get<1>( *it_block_coords_innerlist) )
+            // XXX note that if the metablock and block ends match, block is contained inside the metablock - this case is handled in the later if clause
+            while( it_coords_innerlist != (*it_coords_outerlist).end() && get<1>( *it_coords_innerlist) <= get<1>( *it_block_coords_innerlist) )
                 it_coords_innerlist++;
 
             if(it_coords_innerlist == (*it_coords_outerlist).end()){
@@ -528,32 +541,32 @@ void generate_filtered_features(string metablock_dir, unsigned long group_count,
                 it_block_coords_innerlist = (*it_block_coords_outerlist).end();
                 it_block_coords_innerlist--;
             }
-            else{
+            // else{
 
-                // // if metablock start is greater than current block start (block preceeds completely or overlaps at start of metablock)
-                // // insert the block before the metablock
-                // // note that even after the insert, the iterator would point to the metablock location and not the newly inserted block
-                // if( get<0>( *it_coords_innerlist) > get<0>( *it_block_coords_innerlist) )
-                //     (*it_coords_outerlist).insert( it_coords_innerlist, *it_block_coords_innerlist );
-                // // else if the metablock end is less than the current block end (current block is not completely contained inside the metablock)
-                // // insert the block after the metablock
-                // // Note - here the iterator would point to the metablock (if available) starting after the start of the newly inserted block
-                // else if( get<1>( *it_coords_innerlist) < get<1>( *it_block_coords_innerlist) ){
-                //     it_coords_innerlist++;
-                //     if(it_coords_innerlist == (*it_coords_outerlist).end()){
-                //         (*it_coords_outerlist).insert( it_coords_innerlist, it_block_coords_innerlist, (*it_block_coords_outerlist).end() );
-                //         it_block_coords_innerlist = (*it_block_coords_outerlist).end();
-                //         it_block_coords_innerlist--;
-                //     }
-                //     else{
-                //         (*it_coords_outerlist).insert( it_coords_innerlist, *it_block_coords_innerlist );
-                //     }
-                // }
+            //     // // if metablock start is greater than current block start (block preceeds completely or overlaps at start of metablock)
+            //     // // insert the block before the metablock
+            //     // // note that even after the insert, the iterator would point to the metablock location and not the newly inserted block
+            //     // if( get<0>( *it_coords_innerlist) > get<0>( *it_block_coords_innerlist) )
+            //     //     (*it_coords_outerlist).insert( it_coords_innerlist, *it_block_coords_innerlist );
+            //     // // else if the metablock end is less than the current block end (current block is not completely contained inside the metablock)
+            //     // // insert the block after the metablock
+            //     // // Note - here the iterator would point to the metablock (if available) starting after the start of the newly inserted block
+            //     // else if( get<1>( *it_coords_innerlist) < get<1>( *it_block_coords_innerlist) ){
+            //     //     it_coords_innerlist++;
+            //     //     if(it_coords_innerlist == (*it_coords_outerlist).end()){
+            //     //         (*it_coords_outerlist).insert( it_coords_innerlist, it_block_coords_innerlist, (*it_block_coords_outerlist).end() );
+            //     //         it_block_coords_innerlist = (*it_block_coords_outerlist).end();
+            //     //         it_block_coords_innerlist--;
+            //     //     }
+            //     //     else{
+            //     //         (*it_coords_outerlist).insert( it_coords_innerlist, *it_block_coords_innerlist );
+            //     //     }
+            //     // }
 
-                // Current block should not be contained inside the metablock (metablock starts after block start)
-                if( get<0>( *it_coords_innerlist) > get<0>( *it_block_coords_innerlist) )
-                    (*it_coords_outerlist).insert( it_coords_innerlist, *it_block_coords_innerlist );
-            }
+            //     // Current block should not be contained inside the metablock (metablock starts after block start)
+            //     if( get<0>( *it_coords_innerlist) > get<0>( *it_block_coords_innerlist) )
+            //         (*it_coords_outerlist).insert( it_coords_innerlist, *it_block_coords_innerlist );
+            // }
         }
 
         cout<<(*it_coords_outerlist).size()<<"\n";
@@ -566,9 +579,10 @@ void generate_filtered_features(string metablock_dir, unsigned long group_count,
 
     assembly_idx_offset = 0;
     assembly_idx=start_assembly_idx;
+    vector<ulli>feature_count_vec;
     for(it_coords_outerlist = feature_coords_outerlist.begin(); it_coords_outerlist != feature_coords_outerlist.end();
             it_coords_outerlist++, assembly_idx++, assembly_idx_offset++){
-        ulli last_pos = 0;
+        last_pos = 0;
         cumulative_length[assembly_idx_offset] = 0;
 
         contig_ends_feature_map.clear();
@@ -584,8 +598,8 @@ void generate_filtered_features(string metablock_dir, unsigned long group_count,
 
         for(it_coords_innerlist = (*it_coords_outerlist).begin(); it_coords_innerlist != (*it_coords_outerlist).end(); it_coords_innerlist++){
             if(get<0>(*it_coords_innerlist) > last_pos)
-                last_pos = get<0>(*it_coords_innerlist);
-            cumulative_length[assembly_idx_offset] += get<1>(*it_coords_innerlist)-last_pos+1;
+                last_pos = get<0>(*it_coords_innerlist) - 1;
+            cumulative_length[assembly_idx_offset] += get<1>(*it_coords_innerlist)-last_pos;
             last_pos = get<1>(*it_coords_innerlist);
 
             while( get<3>( *it_coords_innerlist) > contig_ends_vector[contig_idx] ){
@@ -632,7 +646,7 @@ void generate_filtered_features(string metablock_dir, unsigned long group_count,
             if(is_new_contig){
                 if(use_oriented_links){
                     // (distance_from_start, feature_1_idx, is_metablock, strand)
-                    distance = previous_contig_end - get<0>( *it_coords_innerlist ) - 1;
+                    distance = get<0>( *it_coords_innerlist ) - 1 - previous_contig_end;
                     contig_start_feature_tuple = make_tuple(distance, get<3>( *it_coords_innerlist ),
                                                             get<4>( *it_coords_innerlist ), get<2>( *it_coords_innerlist ));
                 }
@@ -668,8 +682,19 @@ void generate_filtered_features(string metablock_dir, unsigned long group_count,
                 it_prev_partition_no = previous_feature_partition_numbers.begin();
 
                 while(it_prev_feat != previous_features.end()){
-                    separation = static_cast<long> (get<0>( *it_coords_innerlist ) - get<1>( *it_prev_feat ) - 1);
-                    if(separation > max_inter_feature_separation){
+                    // separation = static_cast<long> (get<0>( *it_coords_innerlist ) - get<1>( *it_prev_feat ) - 1);
+
+                    if(get<0>( *it_coords_innerlist ) > get<1>( *it_prev_feat )){
+                        // start2 > end1
+                        separation = static_cast<long> (get<0>( *it_coords_innerlist ) - get<1>( *it_prev_feat ) - 1);
+                    }
+                    else{
+                        // start2 <= end 1
+                        separation = static_cast<long> (-(get<1>( *it_prev_feat ) - get<0>( *it_coords_innerlist ) + 1));
+                    }
+
+
+                    if(separation > 0 && separation > max_inter_feature_separation){
                         it_prev_feat = previous_features.erase(it_prev_feat);
                         it_prev_partition_no = previous_feature_partition_numbers.erase(it_prev_partition_no);
                     }
@@ -871,7 +896,32 @@ void generate_filtered_features(string metablock_dir, unsigned long group_count,
         cout<< metablock_coverage[assembly_idx_offset]*1.0/metablock_counts[assembly_idx_offset] << " "<< cumulative_length[assembly_idx_offset] << " ";
         cout<< max_coord_vec[assembly_idx_offset] << " " << cumulative_length[assembly_idx_offset]*1.0/max_coord_vec[assembly_idx_offset] << "\t";
         cout<< feature_count << " " << paired_feature_count << "\n";
+        feature_count_vec.push_back(feature_count);
     }
+
+    string opstr = "";
+    assembly_idx_offset=0;
+    // if(start_assembly_idx==0)
+    //     opstr = "SV_genome_coverage(%),SV_count\n";
+    stringstream ss;
+    for(assembly_idx=start_assembly_idx; assembly_idx<=end_assembly_idx; assembly_idx++, assembly_idx_offset++){
+        // current_total_coverage = metablock_coverage[assembly_idx_offset] + retained_block_coverage[assembly_idx_offset];
+        // opstr += to_string(metablock_coverage[assembly_idx_offset]*1.0/max_coord_vec[assembly_idx_offset]) + ",";
+        // opstr += to_string(retained_block_coverage[assembly_idx_offset]*1.0/max_coord_vec[assembly_idx_offset]) + ",";
+        // opstr += to_string(current_total_coverage*1.0/max_coord_vec[assembly_idx_offset]) + "\n";
+
+        // opstr += to_string(cumulative_length[assembly_idx_offset]*100.0/max_coord_vec[assembly_idx_offset]) + ",";
+        ss.clear();
+        ss.str("");
+        ss << fixed << setprecision(3) << cumulative_length[assembly_idx_offset]*100.0/max_coord_vec[assembly_idx_offset];
+        // opstr += to_string(cumulative_length[assembly_idx_offset]) + ",";
+        // opstr += to_string(max_coord_vec[assembly_idx_offset]) + ",";
+        opstr += ss.str() + "," + to_string(feature_count_vec[assembly_idx_offset]) + "\n";
+    }
+    ofstream outFile;
+    outFile.open(contig_len_dir + "cov_"+partition_idx_str, ios::out);
+    outFile<<opstr;
+    outFile.close();
 
     // return feature_coords_outerlist;
     cout<<"generate_filtered_features ended: "<<metablock_dir<<" "<<group_count<<" "<<partition_idx_str<<"\n";

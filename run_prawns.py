@@ -73,6 +73,15 @@ def remove_file(filename):
         print("remove_file error", cmd, e)
 
 
+def remove_file2(filename):
+    cmd = "rm -rf {}".format(filename)
+    try:
+        p = subprocess.Popen(shlex.split(cmd))
+        p.wait()
+    except Exception as e:
+        print("remove_file error", cmd, e)
+
+
 def cpp_dir_input_setup(assemblies, fasta_file_list, ncores, block_pair_binned_partitions, min_presence_count,
                         use_oriented_links, oriented_links_file_list):
     outdir = "PRAWNS_results"
@@ -173,7 +182,7 @@ def presence_vector_files(hash_string, hash_string_idx, in_dir, outdir='.'):
 
 
 def combine_filemaps(in_dir, outdir='.'):
-    cmd = "echo {}filemap_* | xargs cat > {}combined_map.csv".format(in_dir, outdir)
+    cmd = "echo {}filemap_* | xargs cat > {}combined_map.csv 2>/dev/null".format(in_dir, outdir)
     print("combine_filemaps : ", cmd)
     try:
         p = subprocess.Popen(cmd, shell=True)
@@ -184,7 +193,7 @@ def combine_filemaps(in_dir, outdir='.'):
 
 
 def get_intermediate_filemaps(filenames_str, outfilename):
-    cmd = "cat {} > {}".format(filenames_str, outfilename)
+    cmd = "cat {} > {} 2>/dev/null".format(filenames_str, outfilename)
     rm_cmd = "rm -f {}".format(filenames_str)
 #     print("get_intermediate_filemaps : ", cmd)
     print("get_intermediate_filemaps : ", outfilename)
@@ -199,7 +208,7 @@ def get_intermediate_filemaps(filenames_str, outfilename):
 
 
 def combine_intermediate_filemaps(in_dir, outdir='.'):
-    cmd = "echo {}intermediate_combined_* | xargs cat > {}final_combined_map.csv".format(in_dir, outdir)
+    cmd = "echo {}intermediate_combined_* | xargs cat > {}final_combined_map.csv 2>/dev/null".format(in_dir, outdir)
     rm_cmd = "echo {}intermediate_combined_* | xargs rm -rf".format(in_dir)
 #     print("combine_filemaps : ", cmd)
     print("combine_filemaps : ", outdir)
@@ -221,10 +230,24 @@ def vertical_combine_filemaps(filenames_str, outfilename, merge_separator=','):
         p = subprocess.Popen(cmd, shell=True)
         p.wait()
         print("vertical_combine_filemaps combined")
+        # p = subprocess.Popen(rm_cmd, shell=True)
+        # p.wait()
+    except Exception as e:
+        print("vertical_combine_filemaps error :", cmd, e)
+
+
+def sv_cov_combine_header(input_file, cov_file, outfilename, merge_separator=','):
+    cmd = "cut -d, -f1 {} | paste -d, - {} | sed '1i Sample_name,SV_genome_coverage(%),SV_count' > {}".format(input_file, cov_file, outfilename)
+    rm_cmd = "rm -rf {}".format(cov_file)
+    print("sv_cov_combine_header : ", cmd)
+    try:
+        p = subprocess.Popen(cmd, shell=True)
+        p.wait()
+        print("sv_cov_combine_header combined")
         p = subprocess.Popen(rm_cmd, shell=True)
         p.wait()
     except Exception as e:
-        print("vertical_combine_filemaps error :", cmd, e)
+        print("sv_cov_combine_header error :", cmd, e)
 
 
 def get_hamming_distance(df, assembly_count, start_idx=1, end_idx=-1):
@@ -381,13 +404,14 @@ def str2bool(v):
     return v.lower() in ("y", "yes", "true", "t", "1")
 
 
-def load_distance_edge_weighted_sparse_connectivity_submatrix(knn_subgraph_dir, partition_idx,
-                                                              total_blocks_count, blocks_per_partition):
+def load_distance_edge_weighted_sparse_connectivity_submatrix(knn_subgraph_dir, partition_idx, current_partition_block_start,
+                                                            total_blocks_count, blocks_per_partition):
     knn_subgraph_file = knn_subgraph_dir + str(partition_idx)
     lines = read_file(knn_subgraph_file)
     current_block_count = blocks_per_partition
-    current_partition_block_start = partition_idx*blocks_per_partition
-    if(current_partition_block_start+blocks_per_partition > total_blocks_count):
+    if(current_partition_block_start >= total_blocks_count):
+        current_block_count = 0
+    elif(current_partition_block_start+blocks_per_partition > total_blocks_count):
         current_block_count = total_blocks_count - current_partition_block_start
     
     print("load_distance_edge_weighted_sparse_connectivity_submatrix: ",
@@ -395,7 +419,7 @@ def load_distance_edge_weighted_sparse_connectivity_submatrix(knn_subgraph_dir, 
     
     connectivity_submatrix = dok_matrix((current_block_count, total_blocks_count), dtype=np.uint16)
     if(len(lines)==0):
-        return connectivity_submatrix
+        return partition_idx, connectivity_submatrix
     
 #     block_idx_offset = int(lines[0].split(',')[0])
     print("\t\t",lines[0])
@@ -463,14 +487,18 @@ if __name__ == "__main__":
                                         "merger and extension of metablocks across the genomes (default: 25)")
     parser.add_argument('-s', '--min_block_size', type=int, nargs='?', default=50, help="Smallest size of a block that is to be retained as a " +
                                         "structural variant (default: 50)")
-    parser.add_argument('-R', '--max_pairing_range', type=int, nargs='?', default=100, help="Maximum number of bases between the structural variants " +
-                                        "from a genome for paired analysis (default: 100)")
+    # parser.add_argument('-R', '--max_pairing_range', type=int, nargs='?', default=100, help="Maximum number of bases between the structural variants " +
+    #                                     "from a genome for paired analysis (default: 100)")
+    parser.add_argument('-S', '--max_intervariant_separation', type=int, nargs='?', default=50, help="Maximum number of bases between the structural variants " +
+                                        "from a genome for paired analysis (default: 50)")
     parser.add_argument('-m', '--mem', nargs='?', default="36000MB", help="Upper limit for RAM memory usage.  " +
                                         "Can be in mb/MB/gb/GB/tb/TB (case insensitive), default unit is MB. (default: 36000MB)")
     parser.add_argument('-g', '--genome_len', nargs='?', default="4M", help="Average genome length.  " +
                                         "Can be in k/K/m/M/g/G (case insensitive), default unit is M, i.e. 1x10^6 nt. (default: 4M)")
 
     args = parser.parse_args()
+
+# def main(args):
 
     ncores = args.ncores #8 # 5
 
@@ -532,23 +560,31 @@ if __name__ == "__main__":
     #     max_assemblies_per_partition = math.floor(math.sqrt(max_assemblies_per_partition/genome_len_mb))
     #     max_assemblies_per_partition = max(10, max_assemblies_per_partition)
 
-    max_assemblies_per_partition = (available_memory/ncores - 2250)
+    # max_assemblies_per_partition = (available_memory/ncores - 2250)
+    max_assemblies_per_partition = (available_memory/ncores - 1024)
+    # max_assemblies_per_partition = (available_memory/ncores - 512)
     if(max_assemblies_per_partition < 2):
         max_assemblies_per_partition = 2
     else:
-        max_assemblies_per_partition = math.floor(math.sqrt(max_assemblies_per_partition/genome_len_mb))
+        # max_assemblies_per_partition = math.floor(math.sqrt(max_assemblies_per_partition/genome_len_mb))
+        # max_assemblies_per_partition = math.floor(math.sqrt(max_assemblies_per_partition/(4*genome_len_mb)))
+        # max_assemblies_per_partition = math.floor(max_assemblies_per_partition/16*genome_len_mb)
+        max_assemblies_per_partition = math.floor(max_assemblies_per_partition/(20*genome_len_mb))
         max_assemblies_per_partition = max(2, max_assemblies_per_partition)
 
     feature_partitions = max(ncores, math.ceil(assembly_count/max_assemblies_per_partition))
 
     assemblies_per_partition = math.ceil(assembly_count/feature_partitions)
     min_component_blocks = args.min_group_blocks
-    max_inter_block_pair_separation = args.max_pairing_range
+    # max_inter_block_pair_separation = args.max_pairing_range
+    max_inter_block_pair_separation = args.max_intervariant_separation
     min_block_size = args.min_block_size
     max_metablock_mismatch = args.max_metablock_mismatch
     k_neighbours = 4
     max_neighbour_separation = 5
-    block_pair_partitions = max(feature_partitions, math.ceil(assembly_count/4.0))
+    # block_pair_partitions = max(feature_partitions, math.ceil(assembly_count/4.0))
+    # block_pair_partitions = max(feature_partitions, math.ceil(assembly_count/ncores))
+    block_pair_partitions = feature_partitions
     seq2write_batch = 1000
 
     if(use_oriented_links):
@@ -597,6 +633,16 @@ if __name__ == "__main__":
     print('TIME taken to bin kmers from all files:', end-start)
 
 
+    # start = time.time()
+    # Parallel(n_jobs=ncores, prefer="threads")(
+    #     delayed(run_cpp_binaries)(  "./kmer_pair_positional_binning.o", "{}input_binned_assemblies_{}.txt".format(results_dir, core_idx),
+    #                                 kmer_len, "{}kmer_pairs_{}/".format(results_dir, min_presence_count), binned_assembly_arr[core_idx],
+    #                                 "{}contig_lengths/".format(results_dir), prefix_count, feature_partitions)
+    #         for core_idx in range(len(binned_assembly_arr)))
+    # end = time.time() # timeit.timeit()
+    # print('TIME taken to generate binned kmer pairs:', end-start)
+
+
     pool = Pool(processes=ncores)
     start = time.time() # timeit.timeit()
     for prefix_idx in range(prefix_count):
@@ -632,6 +678,18 @@ if __name__ == "__main__":
     pool.join()
     end = time.time() # timeit.timeit()
     print('TIME taken to generate grouped kmer pairs per partition:', end-start)
+
+
+    # start = time.time()
+    # offset = max(math.ceil(min(feature_partitions/ncores, available_memory/10*ncores)), ncores)
+    # offset_range = math.ceil(feature_partitions/offset)
+    # Parallel(n_jobs=ncores, prefer="threads")(
+    #     delayed(run_cpp_binaries)(  "./kmer_pair_grouper.o", feature_partitions, offset_idx, offset, 
+    #                                 "{}kmer_pairs_{}/".format(results_dir, min_presence_count), assembly_count,
+    #                                 "{}grouped_pairs/".format(results_dir), min_presence_count, kmer_len)
+    #         for offset_idx in range(offset_range))
+    # end = time.time() # timeit.timeit()
+    # print('TIME taken to generate grouped kmer pairs per partition:', end-start)
 
 
     hash_strings = np.unique([filename.split('_')[-1] for filename in glob.glob("{}grouped_pairs/group_files_*".format(results_dir))])
@@ -693,6 +751,11 @@ if __name__ == "__main__":
     if(genome_len_mb > 4):
         length_based_adjustment = genome_len_mb/4
     block_pair_partitions = max(block_pair_partitions, math.ceil(total_blocks_count*(1.5 + np.log2(ncores))*length_based_adjustment/available_memory)) #/5000))
+    # block_pair_partitions = max(block_pair_partitions, math.ceil((total_blocks_count*4*ncores)/(available_memory*max_assemblies_per_partition))) #/5000))
+    # block_pair_partitions = max(block_pair_partitions, math.ceil((total_blocks_count*8*ncores)/(available_memory*100))) #/5000))
+    # block_pair_partitions = max(block_pair_partitions, math.ceil((total_blocks_count*ncores)/(available_memory*4))) #/5000))
+    # block_pair_partitions = max(block_pair_partitions, math.ceil((total_blocks_count*ncores*assemblies_per_partition)/(available_memory*64))) #/5000))
+    block_pair_partitions = math.ceil(block_pair_partitions/ncores)*ncores
     print("Total individual blocks count:", total_blocks_count)
     print("Modified block_pair_partitions count:", block_pair_partitions)
     print("Available Memory:", available_memory)
@@ -749,13 +812,15 @@ if __name__ == "__main__":
 
 
     blocks_per_partition = math.ceil(total_blocks_count/block_pair_partitions)
+    part_arr = np.arange(0, total_blocks_count, blocks_per_partition)
     pool = Pool(processes=ncores)
     start = time.time() # timeit.timeit()
     subgraphs_results = []
-    for partition_idx in range(block_pair_partitions):
+    for partition_idx, current_partition_block_start in enumerate(part_arr):
         subgraphs_results.append(pool.apply_async(load_distance_edge_weighted_sparse_connectivity_submatrix,
                                                   args=("{}k_neighbours/".format(results_dir), partition_idx,
-                                                        total_blocks_count, blocks_per_partition)))
+                                                        current_partition_block_start, total_blocks_count,
+                                                        blocks_per_partition)))
     pool.close()
     pool.join()
     end = time.time() # timeit.timeit()
@@ -800,6 +865,7 @@ if __name__ == "__main__":
     remaining_nodes = set(all_start_candidates)
     all_connected_components = []
 
+    # TODO: Can have collisions; resolve the issue of same component being traversed over separate cores
     Parallel(n_jobs=ncores, prefer="threads", require='sharedmem')(
         delayed(run_bfs_in_parallel)(
             all_start_candidates[start_candidates_arr[core_idx]:start_candidates_arr[core_idx+1]])
@@ -949,6 +1015,16 @@ if __name__ == "__main__":
     print('TIME taken to aggregate partitioned variants matrices:', end-start)
 
 
+    # start = time.time()
+    # Parallel(n_jobs=ncores, prefer="threads")(
+    #     delayed(run_cpp_binaries)(  "./kmer_feature_aggregation_and_pair_filtering.o", partition_idx, assembly_count, assemblies_per_partition,
+    #                                 "{}structural_variants/".format(results_dir), "{}paired_variants/".format(results_dir), min_presence_count,
+    #                                 max_inter_block_pair_separation)
+    #         for partition_idx in range(block_pair_partitions))
+    # end = time.time() # timeit.timeit()
+    # print('TIME taken to aggregate partitioned variants matrices:', end-start)
+
+
     start = time.time()
     if(use_oriented_links):
         Parallel(n_jobs=ncores, prefer="threads")(
@@ -1003,6 +1079,11 @@ if __name__ == "__main__":
 
 
     start = time.time() # timeit.timeit()
+
+    instr = ' '.join(['{}contig_lengths/cov_{}'.format(results_dir, idx-1) for idx in range(1, len(block_pair_partition_pos_arr))])
+    get_intermediate_filemaps(instr, '{}sv_coverage.txt'.format(results_dir))
+    sv_cov_combine_header(args.input, '{}sv_coverage.txt'.format(results_dir), '{}sv_coverages.txt'.format(results_dir))
+
 
     Parallel(n_jobs=ncores, prefer="threads")(
         delayed(get_intermediate_filemaps)( ' '.join(['{}structural_variants/metablock_coords_{}'.format(results_dir, partition_idx)
@@ -1103,3 +1184,44 @@ if __name__ == "__main__":
             for idx in range(w))
     end = time.time() # timeit.timeit()
     print('TIME taken to generate variant fasta sequences:', end-start)
+
+
+    start = time.time()
+    clean_up_list  = [  'assemblywise_blocks/', 'binned_kmers/', 'collinear_blocks/', 'grouped_pairs/',
+                        'kmer_pairs_{}/'.format(min_presence_count), 'k_neighbours/', 'merged_filemap_paths.txt',
+                        'merged_filemap_start_block_indices.txt', 'metablocks/', 'neighbour_pairs/', 'oll', 'paired_variants/',
+                        'retained_binned_kmers_{}/'.format(min_presence_count), 'structural_variants/']
+
+    Parallel(n_jobs=ncores, prefer="threads")(
+        delayed(remove_file2)('{}{}'.format(results_dir, clean_up)) for clean_up in clean_up_list)
+    end = time.time() # timeit.timeit()
+    print('TIME taken for clean-up:', end-start)
+
+
+
+# if __name__ == "__main__":
+
+#     # parser = argparse.ArgumentParser(description='PRAWNS: Pan-genome RepresentAtion of Whole geNomeS tool')
+#     parser = argparse.ArgumentParser(description='PRAWNS: Pan-genome representation of whole genomes tool')
+#     parser.add_argument('-i', '--input', required=True, help="Input csv file")
+#     parser.add_argument('-n', '--ncores', type=int, nargs='?', default=8, help="Number of cores to be used (default: 8)")
+#     parser.add_argument('-K', '--kmer_len', type=int, nargs='?', default=25, help="Length of kmers (default: 25)")
+#     parser.add_argument('-p', '--min_perc', type=float, nargs='?', default=5.0, help="Minimum %% of genomes a variant would be present in (default: 5.0)")
+#     parser.add_argument('-l', '--use_oriented_links', type=str2bool, nargs='?', default=False, const=True, help="Use MetaCarvel oriented links; " + 
+#                                         "if True, 3rd column in input csv should be path to oriented links of corresponding assembly (default: False)")
+#     parser.add_argument('-b', '--min_group_blocks', type=int, nargs='?', default=3, help="Minimum number of exact matching regions (blocks) that " +
+#                                         "can be grouped into metablocks across the genomes (default: 3)")
+#     parser.add_argument('-M', '--max_metablock_mismatch', type=int, nargs='?', default=25, help="Maximum number of mismatches permitted to allow " +
+#                                         "merger and extension of metablocks across the genomes (default: 25)")
+#     parser.add_argument('-s', '--min_block_size', type=int, nargs='?', default=50, help="Smallest size of a block that is to be retained as a " +
+#                                         "structural variant (default: 50)")
+#     parser.add_argument('-R', '--max_pairing_range', type=int, nargs='?', default=100, help="Maximum number of bases between the structural variants " +
+#                                         "from a genome for paired analysis (default: 100)")
+#     parser.add_argument('-m', '--mem', nargs='?', default="36000MB", help="Upper limit for RAM memory usage.  " +
+#                                         "Can be in mb/MB/gb/GB/tb/TB (case insensitive), default unit is MB. (default: 36000MB)")
+#     parser.add_argument('-g', '--genome_len', nargs='?', default="4M", help="Average genome length.  " +
+#                                         "Can be in k/K/m/M/g/G (case insensitive), default unit is M, i.e. 1x10^6 nt. (default: 4M)")
+
+#     args = parser.parse_args()
+
+#     main(args)

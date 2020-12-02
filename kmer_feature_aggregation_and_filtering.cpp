@@ -137,7 +137,7 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
                                 string partition_idx_str){
     cout<<"load_and_aggregate_features started: "<<filtered_feature_dir<<" "<<assembly_count<<" "<<partition_idx_str<<"\n";
 
-    ulli partitioned_assembly_feature_count, block_idx;//, feature_no;
+    ulli partitioned_assembly_feature_count, block_idx, sv_size, sv_size2;//, feature_no;
     short feature_tuple_string_length, split_pos;
     
     unsigned long start_assembly_idx = 0, end_assembly_idx = assemblies_per_partition-1, assembly_idx_offset, missing_entries;
@@ -165,7 +165,7 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
     list<tup_uub>::iterator it_coords;
     vector<bool>::iterator it_presence;
 
-    bool is_new_metablock;
+    bool is_new_metablock, record_sv_size;
 
     set<string> metablock_tuple_string_set;
     set<string>::iterator it_metablock_string_set;
@@ -322,9 +322,14 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
     // Save partitioned feature matrix
 
     it_metablock_presence_map = metablock_presence_map.begin();
+    string sv_coords_name, sv_bool_name;
+    sv_size2 = 0;
     for(it_metablock_coords_map = metablock_tuple_idx_coords_map.begin();
             it_metablock_coords_map != metablock_tuple_idx_coords_map.end() && it_metablock_presence_map != metablock_presence_map.end();
             it_metablock_coords_map++, it_metablock_presence_map++){
+
+        record_sv_size = true;
+        sv_size = 0;
 
         split_pos = (it_metablock_coords_map->first).find("_");
         split_pos = (it_metablock_coords_map->first).find("_", split_pos+1);
@@ -335,9 +340,13 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
         split_no_char = (it_metablock_coords_map->first)[split_pos+1];
         is_new_metablock = (split_no_char=='0');
 
-        opstr_coords = it_metablock_coords_map->first + ",";
+        // opstr_coords = it_metablock_coords_map->first + ",";
+        // if(is_new_metablock)
+        //     opstr_bool = (it_metablock_coords_map->first).substr(0, split_pos) + ",";
+
+        sv_coords_name = it_metablock_coords_map->first + ",";
         if(is_new_metablock)
-            opstr_bool = (it_metablock_coords_map->first).substr(0, split_pos) + ",";
+            sv_bool_name = (it_metablock_coords_map->first).substr(0, split_pos) + ",";
 
 
         assembly_idx_offset = 0;
@@ -351,6 +360,16 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
             if( *it_presence ){
                 opstr_coords += to_string( get<0>(*it_coords) ) + "," + to_string( get<1>(*it_coords) ) + ",";
                 opstr_coords += ( ( get<2>(*it_coords) )?"1,":"0," );
+
+                if(record_sv_size){
+                    sv_size = get<1>(*it_coords) - get<0>(*it_coords) + 1;
+                    record_sv_size = false;
+                    // composite metablock size
+                    if(is_new_metablock)
+                        sv_size2 = sv_size;
+                    else
+                        sv_size2 += sv_size;
+                }
 
                 if(is_new_metablock){
                     opstr_bool += "1,";
@@ -374,6 +393,7 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
 
         opstr_coords.pop_back();
         opstr_coords += "\n";
+        opstr_coords = sv_coords_name + "," + to_string(sv_size) + "," + opstr_coords;
 
         outFile.open((filtered_feature_dir + "metablock_coords_" + partition_idx_str).c_str(), ios::app);
         outFile << opstr_coords;
@@ -382,6 +402,7 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
         if(is_new_metablock){
             opstr_bool.pop_back();
             opstr_bool += "\n";
+            opstr_bool = sv_bool_name + "," + to_string(sv_size2) + "," + opstr_bool;
 
             outFile.open((filtered_feature_dir + "metablock_presence_absence_" + partition_idx_str).c_str(), ios::app);
             outFile << opstr_bool;
