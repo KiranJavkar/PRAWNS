@@ -750,11 +750,12 @@ if __name__ == "__main__":
     length_based_adjustment = 1
     if(genome_len_mb > 4):
         length_based_adjustment = genome_len_mb/4
-    block_pair_partitions = max(block_pair_partitions, math.ceil(total_blocks_count*(1.5 + np.log2(ncores))*length_based_adjustment/available_memory)) #/5000))
+    # block_pair_partitions = max(block_pair_partitions, math.ceil(total_blocks_count*(1.5 + np.log2(ncores))*length_based_adjustment/available_memory)) #/5000))
+    
     # block_pair_partitions = max(block_pair_partitions, math.ceil((total_blocks_count*4*ncores)/(available_memory*max_assemblies_per_partition))) #/5000))
     # block_pair_partitions = max(block_pair_partitions, math.ceil((total_blocks_count*8*ncores)/(available_memory*100))) #/5000))
     # block_pair_partitions = max(block_pair_partitions, math.ceil((total_blocks_count*ncores)/(available_memory*4))) #/5000))
-    # block_pair_partitions = max(block_pair_partitions, math.ceil((total_blocks_count*ncores*assemblies_per_partition)/(available_memory*64))) #/5000))
+    block_pair_partitions = max(block_pair_partitions, math.ceil((total_blocks_count*ncores*assemblies_per_partition)/(available_memory*64))) #/5000))
     block_pair_partitions = math.ceil(block_pair_partitions/ncores)*ncores
     print("Total individual blocks count:", total_blocks_count)
     print("Modified block_pair_partitions count:", block_pair_partitions)

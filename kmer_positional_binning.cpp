@@ -189,6 +189,9 @@ void generate_binned_positional_kmers(string fasta_filename, list< map< ulli, pu
     ulli position = 1; // Following the convention from jellyfish, mummer etc.
 
     ifstream input_file(fasta_filename);
+    if(!input_file){
+        cout<<"COULD NOT ACCESS THE FILE "<<fasta_filename<<"!!!\n";
+    }
     string line;
     bool list_reset = false; // Used for moving the kmer length window through vector
     ps_pullib kmer_idx_strand_pair;
