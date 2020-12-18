@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from collections import Counter
 import glob
 import os, time
-from collections import Counter
 import math
 import shlex, subprocess
 from io import StringIO
@@ -15,7 +14,7 @@ from multiprocessing import Pool
 import random
 from scipy.spatial.distance import hamming
 import pickle
-import timeit
+# import timeit
 import time
 from datetime import datetime
 import argparse, sys
@@ -23,7 +22,7 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA, TruncatedSVD
 from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
 from scipy.spatial.distance import squareform, hamming
-import psutil
+# import psutil
 import scipy
 from scipy.sparse import csr_matrix, dok_matrix
 from scipy.sparse.csgraph import minimum_spanning_tree
@@ -147,6 +146,71 @@ def cpp_dir_input_setup(assemblies, fasta_file_list, ncores, block_pair_binned_p
     # opstr = '\n'.join(assemblies)+'\n'
     # write_file("{}input_assemblies.txt".format(outdir), opstr)
     return outdir, np.concatenate([[0],assembly_partition_pos_arr]), np.array(block_pair_partition_pos_list)
+
+
+# def cpp_dir_input_setup(assemblies, fasta_file_list, ncores, block_pair_binned_partitions, min_presence_count):
+#     outdir = "PRAWNS_results"
+#     if(os.path.exists(outdir)):
+#         outdir += "_{}".format(datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+#     outdir += '/'
+#     create_dir(outdir)
+#     create_dir("{}binned_kmers/".format(outdir))
+#     create_dir("{}retained_binned_kmers_{}/".format(outdir, min_presence_count))
+#     create_dir("{}retained_binned_kmers_{}/assemblywise/".format(outdir, min_presence_count))
+#     create_dir("{}contig_lengths/".format(outdir))
+#     create_dir("{}kmer_pairs_{}/".format(outdir, min_presence_count))
+#     create_dir("{}grouped_pairs/".format(outdir))
+#     create_dir("{}collinear_blocks/".format(outdir))
+#     create_dir("{}oll/".format(outdir))
+#     create_dir("{}assemblywise_blocks/".format(outdir))
+#     create_dir("{}neighbour_pairs/".format(outdir))
+#     create_dir("{}k_neighbours/".format(outdir))
+#     create_dir("{}metablocks/".format(outdir))
+#     create_dir("{}structural_variants/".format(outdir))
+#     create_dir("{}paired_variants/".format(outdir))
+
+
+#     assembly_count = len(assemblies)
+#     step = math.ceil(assembly_count/(float)(ncores))
+#     assembly_partition_pos_arr = np.arange(step, assembly_count, step)
+#     core_idx = 0
+#     partition_start = 0
+
+#     for partition_end in assembly_partition_pos_arr:
+#         opstr = '\n'.join(fasta_file_list[partition_start:partition_end])+'\n'
+#         write_file("{}input_binned_assemblies_{}.txt".format(outdir, core_idx), opstr)
+#         core_idx += 1
+#         partition_start = partition_end
+#     if(partition_start<assembly_count):
+#         opstr = '\n'.join(fasta_file_list[partition_start:assembly_count])+'\n'
+#         write_file("{}input_binned_assemblies_{}.txt".format(outdir, core_idx), opstr)
+
+#     opstr = '\n'.join(fasta_file_list) + '\n'
+#     write_file("{}all_assembly_filepaths.txt".format(outdir), opstr)
+
+#     return outdir, np.concatenate([[0],assembly_partition_pos_arr])
+
+
+# def generate_assembly_partitions(assembly_count, partition_count, use_oriented_links, oriented_links_file_list):
+#     block_pair_step = math.ceil(assembly_count/(float)(partition_count))
+#     assembly_partition_pos_list = [0]
+#     core_idx = 0
+#     partition_start = 0
+#     partition_end = block_pair_step
+    
+#     while(partition_end < assembly_count):
+#         if(use_oriented_links):
+#             opstr = '\n'.join(oriented_links_file_list[partition_start:partition_end])+'\n'
+#             write_file("{}ol_files_{}.txt".format(outdir, core_idx), opstr)
+#             core_idx += 1
+#         assembly_partition_pos_list.append(partition_end)
+#         partition_start = partition_end
+#         partition_end += block_pair_step
+#     # if(partition_end!=assembly_count):
+#     if(use_oriented_links):
+#         opstr = '\n'.join(oriented_links_file_list[partition_start:assembly_count])+'\n'
+#         write_file("{}ol_files_{}.txt".format(outdir, core_idx), opstr)
+#     assembly_partition_pos_list.append(assembly_count)
 
 
 def make_oriented_links_file_groups(oriented_links_file_list, partitions, assembly_count, outdir):
@@ -561,8 +625,8 @@ if __name__ == "__main__":
     #     max_assemblies_per_partition = max(10, max_assemblies_per_partition)
 
     # max_assemblies_per_partition = (available_memory/ncores - 2250)
-    max_assemblies_per_partition = (available_memory/ncores - 1024)
-    # max_assemblies_per_partition = (available_memory/ncores - 512)
+    # max_assemblies_per_partition = (available_memory/ncores - 1024)
+    max_assemblies_per_partition = (available_memory/ncores - 512)
     if(max_assemblies_per_partition < 2):
         max_assemblies_per_partition = 2
     else:
@@ -601,6 +665,7 @@ if __name__ == "__main__":
     results_dir, binned_assembly_arr, block_pair_partition_pos_arr = cpp_dir_input_setup( input_assemblies, fasta_filepaths, ncores,
                                                                                             feature_partitions, min_presence_count, use_oriented_links,
                                                                                             oriented_links_paths)
+    # results_dir, binned_assembly_arr = cpp_dir_input_setup( input_assemblies, fasta_filepaths, ncores, feature_partitions, min_presence_count)
     print(binned_assembly_arr)
     print(block_pair_partition_pos_arr)
 
@@ -751,15 +816,19 @@ if __name__ == "__main__":
     if(genome_len_mb > 4):
         length_based_adjustment = genome_len_mb/4
     # block_pair_partitions = max(block_pair_partitions, math.ceil(total_blocks_count*(1.5 + np.log2(ncores))*length_based_adjustment/available_memory)) #/5000))
-    
+
     # block_pair_partitions = max(block_pair_partitions, math.ceil((total_blocks_count*4*ncores)/(available_memory*max_assemblies_per_partition))) #/5000))
     # block_pair_partitions = max(block_pair_partitions, math.ceil((total_blocks_count*8*ncores)/(available_memory*100))) #/5000))
     # block_pair_partitions = max(block_pair_partitions, math.ceil((total_blocks_count*ncores)/(available_memory*4))) #/5000))
     block_pair_partitions = max(block_pair_partitions, math.ceil((total_blocks_count*ncores*assemblies_per_partition)/(available_memory*64))) #/5000))
     block_pair_partitions = math.ceil(block_pair_partitions/ncores)*ncores
+
+    max_load_coords = max((math.floor(available_memory/ncores) - 512)*100, genome_len_mb*100000)
+    
     print("Total individual blocks count:", total_blocks_count)
     print("Modified block_pair_partitions count:", block_pair_partitions)
     print("Available Memory:", available_memory)
+    print("max_load_coords:", max_load_coords)
 
     out_str += "\n\nTotal individual block count: {}\n".format(total_blocks_count)
 
@@ -771,6 +840,8 @@ if __name__ == "__main__":
     # max_pairs_before_dump_limit = math.floor((available_memory-1500)*8000/ncores) - math.ceil(total_blocks_count*10*(1 + np.log10(ncores)))
     # print("max_pairs_before_dump_limit Memory:", max_pairs_before_dump_limit)
 
+    # block_pair_partition_pos_arr = generate_assembly_partitions(assembly_count, feature_partitions, use_oriented_links, oriented_links_paths)
+
 
     pool = Pool(processes=ncores)
     start = time.time() # timeit.timeit()
@@ -780,14 +851,14 @@ if __name__ == "__main__":
                                                 block_pair_partition_pos_arr[idx]-1, paths_filename, start_block_indices_filename, feature_partitions,
                                                 block_pair_partitions, total_blocks_count, "{}kmer_pairs_{}/".format(results_dir, min_presence_count),
                                                 "{}assemblywise_blocks/".format(results_dir), kmer_len, "{}contig_lengths/".format(results_dir), k_neighbours-1,
-                                                max_neighbour_separation, "{}neighbour_pairs/".format(results_dir), min_block_size, uol,
+                                                max_neighbour_separation, max_load_coords, "{}neighbour_pairs/".format(results_dir), min_block_size, uol,
                                                 "{}ol_files_{}.txt".format(results_dir, idx-1), "{}oll/".format(results_dir)))
         else:
             pool.apply_async(run_cpp_binaries, args=("./kmer_block_and_neighbours_locator.o", "{}col_".format(results_dir), block_pair_partition_pos_arr[idx-1],
                                                 block_pair_partition_pos_arr[idx]-1, paths_filename, start_block_indices_filename, feature_partitions,
                                                 block_pair_partitions, total_blocks_count, "{}kmer_pairs_{}/".format(results_dir, min_presence_count),
                                                 "{}assemblywise_blocks/".format(results_dir), kmer_len, "{}contig_lengths/".format(results_dir), k_neighbours-1,
-                                                max_neighbour_separation, "{}neighbour_pairs/".format(results_dir), min_block_size, uol))
+                                                max_neighbour_separation, max_load_coords, "{}neighbour_pairs/".format(results_dir), min_block_size, uol))
     pool.close()
     pool.join()
     end = time.time() # timeit.timeit()
