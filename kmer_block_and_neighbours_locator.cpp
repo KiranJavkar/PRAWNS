@@ -614,23 +614,25 @@ void locate_and_save_assemblyspecific_collinear_blocks(list<Assemblyspecific_Blo
     ulli prev_block_idx = 0, diff;
     list<Assemblyspecific_Block>::iterator it_blocks = block_list.begin();
 
-    while(prev_block_idx < it_blocks->block_idx){
-        outstring += "0,0,0,";
-        prev_block_idx++;
-    }
-
-    while(it_blocks != block_list.end()){
-        diff = it_blocks->block_idx - prev_block_idx;
-        while(diff>1){
+    if(block_list.size()>0){
+        while(prev_block_idx < it_blocks->block_idx){
             outstring += "0,0,0,";
-            diff--;
+            prev_block_idx++;
         }
-        outstring += to_string(it_blocks->start_pos) + ",";
-        outstring += to_string(it_blocks->end_pos) + ",";
-        outstring += (it_blocks->orientation)?"1,":"0,";
 
-        prev_block_idx = it_blocks->block_idx;
-        it_blocks++;
+        while(it_blocks != block_list.end()){
+            diff = it_blocks->block_idx - prev_block_idx;
+            while(diff>1){
+                outstring += "0,0,0,";
+                diff--;
+            }
+            outstring += to_string(it_blocks->start_pos) + ",";
+            outstring += to_string(it_blocks->end_pos) + ",";
+            outstring += (it_blocks->orientation)?"1,":"0,";
+
+            prev_block_idx = it_blocks->block_idx;
+            it_blocks++;
+        }
     }
 
     while(prev_block_idx++ < total_block_count)
@@ -919,17 +921,16 @@ int main(int argc, char** argv){
     string contig_len_dir = argv[12];
     short k_neighbours = static_cast<short>(stoi(argv[13]));
     short max_separation = static_cast<short>(stoi(argv[14]));
-    ulli max_load_coords = strtoulli(argv[15]);
-    string neighbour_pair_partition_outdir = argv[16];
-    unsigned long min_sv_size = stoul(argv[17]);
-    bool use_oriented_links = strncmp(argv[18],"1",1)==0;
+    string neighbour_pair_partition_outdir = argv[15];
+    unsigned long min_sv_size = stoul(argv[16]);
+    bool use_oriented_links = strncmp(argv[17],"1",1)==0;
     string oriented_links_outdir, contig_len_filename;
 
     list<string> oriented_links_filename_list;
     if(use_oriented_links){
-        oriented_links_filename_list = get_filepaths(argv[19]);
-        remove(argv[19]);
-        oriented_links_outdir = argv[20];
+        oriented_links_filename_list = get_filepaths(argv[18]);
+        remove(argv[18]);
+        oriented_links_outdir = argv[19];
     }
 
     // cout<<start_assembly_idx_str<<" "<<end_assembly_idx_str<<"\n";
@@ -971,7 +972,6 @@ int main(int argc, char** argv){
     string assembly_idx_str;
 
     ulli blocks_per_partition = ceil(float(total_block_count)/block_pair_partitions);
-    ulli current_loaded_block_coords = 0;
 
 
     // init_map_group_lists(block_pair_map_list, block_pair_partitions);
@@ -995,14 +995,6 @@ int main(int argc, char** argv){
 
         assemblyspecific_collinear_block_list.sort(block_list_comparator);
         cout<<"Sorted collinear block list "<<assembly_idx<<" "<<assemblyspecific_collinear_block_list.size()<<"\n";
-
-        current_loaded_block_coords += assemblyspecific_collinear_block_list.size();
-        cout<<current_loaded_block_coords<<" "<<loaded_blocks_map.size()<<"\n";
-        
-        if(current_loaded_block_coords >= max_load_coords){
-            loaded_blocks_map.clear();
-            current_loaded_block_coords = 0;
-        }
 
         contig_ends_vector = get_contig_ends_vector(contig_len_dir + to_string(assembly_idx), contig_name_map);
 
