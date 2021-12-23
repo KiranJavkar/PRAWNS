@@ -379,6 +379,11 @@ void load_features_and_update(  string filtered_feature_dir, string paired_featu
 
         pair_tuples_innerlist.clear();
         inFile.open((paired_feature_dir + "pair_tuples_" + to_string(partition_idx)).c_str(), ios::binary);
+        if(!inFile){
+            cout<<"ALERT!!! ERROR IN LOADING PAIR TUPLES FILE "<<filename<<"!!! "<<" : "<<pair_count<<'\n';
+            continue;
+            // return;
+        }
         inFile.read((char*) (&pair_count), sizeof(pair_count));
 
         for(idx=0; idx<pair_count; idx++){
@@ -422,12 +427,21 @@ void load_features_and_update(  string filtered_feature_dir, string paired_featu
             it_outstrings_separation++;
         }*/
 
+        if(pair_count==0){
+            ofstream { (filename_prefix + "_" + to_string(partition_idx) + "_updated_presence").c_str() };
+            ofstream { (filename_prefix + "_" + to_string(partition_idx) + "_updated_separation").c_str() };
+            continue;
+        }
+
         filename = filename_prefix + to_string(partition_idx) + "_presence";
         cout<<"\t"<<filename<<"\n";
         inFile.open(filename.c_str(), ios::binary);
         if(!inFile){
-            cout<<"ALERT!!! ERROR IN LOADING PARTITIONED PAIR PRESENCE FILE "<<filename<<"!!!";
-            return;
+            cout<<"ALERT!!! ERROR IN LOADING PARTITIONED PAIR PRESENCE FILE "<<filename<<"!!! "<<" : "<<pair_count<<'\n';
+            ofstream { (filename_prefix + "_" + to_string(partition_idx) + "_updated_presence").c_str() };
+            ofstream { (filename_prefix + "_" + to_string(partition_idx) + "_updated_separation").c_str() };
+            continue;
+            // return;
         }
 
         for(idx=0; idx<pair_count; idx++){
@@ -584,15 +598,19 @@ void load_features_and_update(  string filtered_feature_dir, string paired_featu
                                         // if relative_orientation_1 == false:  B-------[<-(0)---]---->E(0) or E<----[---(1)->]----B(1)
                                         // ==> ( relative_orientation_1 == (contig_orientation XOR feature orientation) ) 
 
-                                        valid = (relative_orientation_1 == (( get<2>(coords_1) && ~(get<0>( (*it_ol_map).second )) ) ||
-                                                                            ( ~get<2>(coords_1) && (get<0>( (*it_ol_map).second )) ) ));
+                                        // valid = (relative_orientation_1 == (( get<2>(coords_1) && ~(get<0>( (*it_ol_map).second )) ) ||
+                                        //                                     ( ~get<2>(coords_1) && (get<0>( (*it_ol_map).second )) ) ));
+                                        valid = (relative_orientation_1 == (( get<2>(coords_1) && !(get<0>( (*it_ol_map).second )) ) ||
+                                                                            ( !get<2>(coords_1) && (get<0>( (*it_ol_map).second )) ) ));
 
                                         // if relative_orientation_2 == true:   (1)B-------[--(1)-->]---->E or (0)E<----[<--(0)--]----B
                                         // if relative_orientation_2 == false:  (1)B-------[<-(0)---]---->E or (0)E<----[---(1)->]----B
                                         // ==> ( relative_orientation_2 == (contig_orientation XNOR feature orientation) )
 
+                                        // valid = valid && (relative_orientation_2 == (( get<2>(coords_2) && (get<1>( (*it_ol_map).second )) ) ||
+                                        //                                             ( ~get<2>(coords_2) && ~(get<1>( (*it_ol_map).second )) ) ));
                                         valid = valid && (relative_orientation_2 == (( get<2>(coords_2) && (get<1>( (*it_ol_map).second )) ) ||
-                                                                                    ( ~get<2>(coords_2) && ~(get<1>( (*it_ol_map).second )) ) ));
+                                                                                    ( !get<2>(coords_2) && !(get<1>( (*it_ol_map).second )) ) ));
                                     }
                                     else
                                         valid = false;
@@ -607,15 +625,19 @@ void load_features_and_update(  string filtered_feature_dir, string paired_featu
                                         // if relative_orientation_2 == false:  B-------[<-(0)---]---->E(0) or E<----[---(1)->]----B(1)
                                         // ==> ( relative_orientation_2 == (contig_orientation XOR feature orientation) ) 
 
-                                        valid = (relative_orientation_2 == (( get<2>(coords_2) && ~(get<0>( (*it_ol_map).second )) ) ||
-                                                                            ( ~get<2>(coords_2) && (get<0>( (*it_ol_map).second )) ) ));
+                                        // valid = (relative_orientation_2 == (( get<2>(coords_2) && ~(get<0>( (*it_ol_map).second )) ) ||
+                                        //                                     ( ~get<2>(coords_2) && (get<0>( (*it_ol_map).second )) ) ));
+                                        valid = (relative_orientation_2 == (( get<2>(coords_2) && !(get<0>( (*it_ol_map).second )) ) ||
+                                                                            ( !get<2>(coords_2) && (get<0>( (*it_ol_map).second )) ) ));
 
                                         // if relative_orientation_1 == true:   (1)B-------[--(1)-->]---->E or (0)E<----[<--(0)--]----B
                                         // if relative_orientation_1 == false:  (1)B-------[<-(0)---]---->E or (0)E<----[---(1)->]----B
                                         // ==> ( relative_orientation_1 == (contig_orientation XNOR feature orientation) )
 
+                                        // valid = valid && (relative_orientation_1 == (( get<2>(coords_1) && (get<1>( (*it_ol_map).second )) ) ||
+                                        //                                             ( ~get<2>(coords_1) && ~(get<1>( (*it_ol_map).second )) ) ));
                                         valid = valid && (relative_orientation_1 == (( get<2>(coords_1) && (get<1>( (*it_ol_map).second )) ) ||
-                                                                                    ( ~get<2>(coords_1) && ~(get<1>( (*it_ol_map).second )) ) ));
+                                                                                    ( !get<2>(coords_1) && !(get<1>( (*it_ol_map).second )) ) ));
                                     }
                                     else
                                         valid = false;

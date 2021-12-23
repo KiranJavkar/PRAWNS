@@ -152,7 +152,7 @@ void fetch_variant_fasta(string assembly_fasta_file, ulli variant_start, ulli va
     string header, contig_header, current_fasta = "";
     list<string>::iterator it_assembly_fasta_lines;
     ulli pos=1, local_start, local_end, local_coords=1;
-    short read_line_len, loc_on_line=0;
+    ulli read_line_len, loc_on_line=0;
     bool found=false, being_read=false, continue_on_current_line=false;
 
     ifstream inFile;

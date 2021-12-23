@@ -978,7 +978,7 @@ int main(int argc, char** argv){
 
 
     for(unsigned long assembly_idx = start_assembly_idx; assembly_idx <= end_assembly_idx; assembly_idx++){
-        kmer_pair_map.clear();
+        // kmer_pair_map.clear();
         contig_name_map.clear();
         assemblyspecific_collinear_block_list.clear();
 
@@ -992,6 +992,7 @@ int main(int argc, char** argv){
         locate_and_save_assemblyspecific_collinear_blocks(assemblyspecific_collinear_block_list, all_filename_list, all_start_block_idx_list,
                                                         assembly_idx, bool_col_filename.c_str(), kmer_pair_map, kmer_len, total_block_count,
                                                         assembly_blocks_out_dir, loaded_blocks_map, min_sv_size);
+        kmer_pair_map.clear();
 
         assemblyspecific_collinear_block_list.sort(block_list_comparator);
         cout<<"Sorted collinear block list "<<assembly_idx<<" "<<assemblyspecific_collinear_block_list.size()<<"\n";

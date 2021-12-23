@@ -275,18 +275,35 @@ void init_partitioned_feature_lists(list< list< list<tup_uubub> > >& feature_par
     // tup_uubub: <start, end, strand, feature_idx, is_metablock>
     // tup_ububbbl: <feature_1_idx, is_1_metablock, feature_2_idx, is_2_metablock, rel_orientation_1, rel_orientation_2, inter_feature_separation>
 
-    list< list<tup_uubub> > feature_partition_innerlist;
-    list< list<tup_ububbbl> > paired_feature_partition_innerlist;
+    // list< list<tup_uubub> > feature_partition_innerlist;
+    // list< list<tup_ububbbl> > paired_feature_partition_innerlist;
 
-    list<tup_uubub> partitioned_assembly_features;
-    list<tup_ububbbl> partitioned_assembly_paired_features;
+    // list<tup_uubub> partitioned_assembly_features;
+    // list<tup_ububbbl> partitioned_assembly_paired_features;
 
-    for(unsigned long assembly_idx_offset = 0; assembly_idx_offset < current_assembly_count; assembly_idx_offset++){
-        feature_partition_innerlist.push_back(partitioned_assembly_features);
-        paired_feature_partition_innerlist.push_back(partitioned_assembly_paired_features);
-    }
+    // for(unsigned long assembly_idx_offset = 0; assembly_idx_offset < current_assembly_count; assembly_idx_offset++){
+    //     feature_partition_innerlist.push_back(partitioned_assembly_features);
+    //     paired_feature_partition_innerlist.push_back(partitioned_assembly_paired_features);
+    // }
+
+    // for(short partition_idx = 0; partition_idx < feature_partitions; partition_idx++){
+    //     feature_partition_outerlist.push_back(feature_partition_innerlist);
+    //     paired_feature_partition_outerlist.push_back(paired_feature_partition_innerlist);
+    // }
+
 
     for(short partition_idx = 0; partition_idx < feature_partitions; partition_idx++){
+        list< list<tup_uubub> > feature_partition_innerlist;
+        list< list<tup_ububbbl> > paired_feature_partition_innerlist;
+
+        for(unsigned long assembly_idx_offset = 0; assembly_idx_offset < current_assembly_count; assembly_idx_offset++){
+            list<tup_uubub> partitioned_assembly_features;
+            list<tup_ububbbl> partitioned_assembly_paired_features;
+
+            feature_partition_innerlist.push_back(partitioned_assembly_features);
+            paired_feature_partition_innerlist.push_back(partitioned_assembly_paired_features);
+        }
+
         feature_partition_outerlist.push_back(feature_partition_innerlist);
         paired_feature_partition_outerlist.push_back(paired_feature_partition_innerlist);
     }
@@ -931,7 +948,7 @@ void generate_filtered_features(string metablock_dir, unsigned long group_count,
 void save_partitioned_features( list< list< list<tup_uubub> > > feature_partition_outerlist,
                                 list< list< list<tup_ububbbl> > > paired_feature_partition_outerlist,
                                 map<ulli, string> metablock_tuple_idx_map, string start_assembly_idx_str, string end_assembly_idx_str,
-                                string filtered_feature_outdir, string paired_feature_outdir){
+                                string filtered_feature_outdir, string paired_feature_outdir, short feature_partitions){
     cout<<"save_partitioned_features started: "<<start_assembly_idx_str<<" "<<end_assembly_idx_str<<"\n";
 
     string filename, feature_tuple_string;
@@ -1053,6 +1070,14 @@ void save_partitioned_features( list< list< list<tup_uubub> > > feature_partitio
         outFile.close();
     }
 
+    while(partition_idx < feature_partitions){
+        filename = paired_feature_outdir + start_assembly_idx_str + "_" + end_assembly_idx_str + "_" + to_string(partition_idx++);
+        outFile.open(filename.c_str(), ios::binary);
+        partitioned_assembly_feature_count = 0;
+        outFile.write((char*) (&partitioned_assembly_feature_count), sizeof(partitioned_assembly_feature_count));
+        outFile.close();
+    }
+
     cout<<"save_partitioned_features ended: "<<start_assembly_idx_str<<" "<<end_assembly_idx_str<<"\n";
 }
 
@@ -1081,6 +1106,11 @@ void locate_and_save_first_occurrence_features( string metablock_dir, unsigned l
         it_first_occurrence_coords_outerlist = first_occurrence_coords_outerlist.begin();
         filename = (metablock_dir + to_string(group_no) + "_fo_" + partition_idx_str);
         inFile.open( filename.c_str(), ios::binary);
+
+        if(!inFile){
+            cout<<"ALERT!!! ERROR IN LOADING "<<filename<<"!!!";
+            return;
+        }
 
         for(assembly_idx = start_assembly_idx; assembly_idx<=end_assembly_idx; assembly_idx++, it_first_occurrence_coords_outerlist++){
             inFile.read((char*) (&metablock_count), sizeof(metablock_count));
@@ -1213,8 +1243,12 @@ int main(int argc, char** argv){
         cout<<metablock_tuple_idx_map[*it]<<" ";
     cout<<"\n";
 
+    // for(short partition_idx=0; partition_idx<feature_partitions; partition_idx++){
+    //     ofstream { (filtered_feature_outdir + start_assembly_idx_str + "_" + end_assembly_idx_str + "_" + to_string(partition_idx)).c_str() };
+    // }
+
     save_partitioned_features(  feature_partition_outerlist, paired_feature_partition_outerlist, metablock_tuple_idx_map,
-                                start_assembly_idx_str, end_assembly_idx_str, filtered_feature_outdir, paired_feature_outdir);
+                                start_assembly_idx_str, end_assembly_idx_str, filtered_feature_outdir, paired_feature_outdir, feature_partitions);
 
     locate_and_save_first_occurrence_features(metablock_dir, group_count, assembly_blocks_dir, start_assembly_idx, end_assembly_idx,
                                             count_offset, partition_idx_str, metablock_tuple_idx_map, filtered_feature_outdir);

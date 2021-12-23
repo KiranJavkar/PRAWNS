@@ -23,7 +23,7 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA, TruncatedSVD
 from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
 from scipy.spatial.distance import squareform, hamming
-import psutil
+# import psutil
 import scipy
 from scipy.sparse import csr_matrix, dok_matrix
 from scipy.sparse.csgraph import minimum_spanning_tree
@@ -83,11 +83,12 @@ def remove_file2(filename):
 
 
 def cpp_dir_input_setup(assemblies, fasta_file_list, ncores, block_pair_binned_partitions, min_presence_count,
-                        use_oriented_links, oriented_links_file_list):
-    outdir = "PRAWNS_results"
+                        use_oriented_links, oriented_links_file_list, outdir):
+    # outdir = "PRAWNS_results"
     if(os.path.exists(outdir)):
         outdir += "_{}".format(datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
-    outdir += '/'
+    if(outdir[-1] != '/'):
+        outdir += '/'
     create_dir(outdir)
     create_dir("{}binned_kmers/".format(outdir))
     create_dir("{}retained_binned_kmers_{}/".format(outdir, min_presence_count))
@@ -478,6 +479,7 @@ if __name__ == "__main__":
     parser.add_argument('-i', '--input', required=True, help="Input csv file")
     parser.add_argument('-n', '--ncores', type=int, nargs='?', default=8, help="Number of cores to be used (default: 8)")
     parser.add_argument('-K', '--kmer_len', type=int, nargs='?', default=25, help="Length of kmers (default: 25)")
+    parser.add_argument('-o', '--outdir', nargs='?', default="PRAWNS_results", help="Output directory")
     parser.add_argument('-p', '--min_perc', type=float, nargs='?', default=5.0, help="Minimum %% of genomes a variant would be present in (default: 5.0)")
     parser.add_argument('-l', '--use_oriented_links', type=str2bool, nargs='?', default=False, const=True, help="Use MetaCarvel oriented links; " + 
                                         "if True, 3rd column in input csv should be path to oriented links of corresponding assembly (default: False)")
@@ -485,12 +487,18 @@ if __name__ == "__main__":
                                         "can be grouped into metablocks across the genomes (default: 3)")
     parser.add_argument('-M', '--max_metablock_mismatch', type=int, nargs='?', default=25, help="Maximum number of mismatches permitted to allow " +
                                         "merger and extension of metablocks across the genomes (default: 25)")
-    parser.add_argument('-s', '--min_block_size', type=int, nargs='?', default=50, help="Smallest size of a block that is to be retained as a " +
-                                        "structural variant (default: 50)")
+    parser.add_argument('-N', '--max_neighbor_distance', type=int, nargs='?', default=25, help="Maximum separation between neighboring blocks " +
+                                        "for collocated blocks (components) identification (default: 5)")
+    # parser.add_argument('-s', '--min_block_size', type=int, nargs='?', default=50, help="Smallest size of a block that is to be retained as a " +
+                                        # "structural variant (default: 50)")
+    parser.add_argument('-s', '--min_block_size', type=int, nargs='?', default=50, help="Smallest size of a block retained as a " +
+                                        "conserved region (default: 50)")
     # parser.add_argument('-R', '--max_pairing_range', type=int, nargs='?', default=100, help="Maximum number of bases between the structural variants " +
     #                                     "from a genome for paired analysis (default: 100)")
-    parser.add_argument('-S', '--max_intervariant_separation', type=int, nargs='?', default=50, help="Maximum number of bases between the structural variants " +
-                                        "from a genome for paired analysis (default: 50)")
+    # parser.add_argument('-S', '--max_intervariant_separation', type=int, nargs='?', default=50, help="Maximum number of bases between the structural variants " +
+    #                                     "from a genome for paired analysis (default: 50)")
+    parser.add_argument('-S', '--max_intervariant_separation', type=int, nargs='?', default=50, help="Maximum number of bases between adjacent conserved regions " +
+                                        "from a genome to get paired regions (default: 50)")
     parser.add_argument('-m', '--mem', nargs='?', default="36000MB", help="Upper limit for RAM memory usage.  " +
                                         "Can be in mb/MB/gb/GB/tb/TB (case insensitive), default unit is MB. (default: 36000MB)")
     parser.add_argument('-g', '--genome_len', nargs='?', default="4M", help="Average genome length.  " +
@@ -508,6 +516,7 @@ if __name__ == "__main__":
 
 
     kmer_len = args.kmer_len
+    outdir = args.outdir
     prefix_len = 5 ## Fixed kmer prefix length
     min_presence_perc = args.min_perc
     prefix_count = pow(4, prefix_len)
@@ -580,8 +589,10 @@ if __name__ == "__main__":
     max_inter_block_pair_separation = args.max_intervariant_separation
     min_block_size = args.min_block_size
     max_metablock_mismatch = args.max_metablock_mismatch
-    k_neighbours = 4
-    max_neighbour_separation = 5
+    # k_neighbours = 4
+    # max_neighbour_separation = 5
+    max_neighbour_separation = args.max_neighbor_distance
+    k_neighbours = round(math.sqrt(max_neighbour_separation)) + 2
     # block_pair_partitions = max(feature_partitions, math.ceil(assembly_count/4.0))
     # block_pair_partitions = max(feature_partitions, math.ceil(assembly_count/ncores))
     block_pair_partitions = feature_partitions
@@ -600,7 +611,7 @@ if __name__ == "__main__":
 
     results_dir, binned_assembly_arr, block_pair_partition_pos_arr = cpp_dir_input_setup( input_assemblies, fasta_filepaths, ncores,
                                                                                             feature_partitions, min_presence_count, use_oriented_links,
-                                                                                            oriented_links_paths)
+                                                                                            oriented_links_paths, outdir)
     print(binned_assembly_arr)
     print(block_pair_partition_pos_arr)
 
@@ -771,8 +782,12 @@ if __name__ == "__main__":
     # max_pairs_before_dump_limit = math.floor((available_memory-1500)*8000/ncores) - math.ceil(total_blocks_count*10*(1 + np.log10(ncores)))
     # print("max_pairs_before_dump_limit Memory:", max_pairs_before_dump_limit)
 
+    limit_cores = math.floor(available_memory/(total_blocks_count/1000 + 100*genome_len_mb + 1000))
+    if(limit_cores < 2):
+        limit_cores = 2
 
-    pool = Pool(processes=ncores)
+
+    pool = Pool(processes=min(ncores, limit_cores))
     start = time.time() # timeit.timeit()
     for idx in range(1, len(block_pair_partition_pos_arr)):
         if(use_oriented_links):
@@ -1007,6 +1022,7 @@ if __name__ == "__main__":
     # print('TIME taken to aggregate partitioned variants matrices:', end-start)
 
 
+    # assembly_partitions = math.ceil(assembly_count/assemblies_per_partition)
     start = time.time()
     Parallel(n_jobs=ncores, prefer="threads")(
         delayed(run_cpp_binaries)(  "./kmer_feature_aggregation_and_pair_filtering.o", partition_idx, assembly_count, assemblies_per_partition,
@@ -1107,7 +1123,7 @@ if __name__ == "__main__":
     outstr_list.append('{}metablock_presence_absence.csv'.format(results_dir))
 
     Parallel(n_jobs=w, prefer="threads")(
-        delayed(get_intermediate_filemaps)(instr_list[idx], outstr_list[idx]) for idx in range(w))
+        delayed(get_intermediate_filemaps)(instr_list[idx], outstr_list[idx]) for idx in range(len(outstr_list)))
 
     end = time.time() # timeit.timeit()
     print('TIME taken to merge metablock coords and presence:', end-start)
@@ -1135,7 +1151,7 @@ if __name__ == "__main__":
     outstr_list.append('{}retained_block_presence_absence.csv'.format(results_dir))
 
     Parallel(n_jobs=w, prefer="threads")(
-        delayed(get_intermediate_filemaps)(instr_list[idx], outstr_list[idx]) for idx in range(w))
+        delayed(get_intermediate_filemaps)(instr_list[idx], outstr_list[idx]) for idx in range(len(outstr_list)))
 
     end = time.time() # timeit.timeit()
     print('TIME taken to merge filtered block coords and presence:', end-start)
@@ -1163,7 +1179,7 @@ if __name__ == "__main__":
     outstr_list.append('{}pair_presence_absence.csv'.format(results_dir))
 
     Parallel(n_jobs=w, prefer="threads")(
-        delayed(get_intermediate_filemaps)(instr_list[idx], outstr_list[idx]) for idx in range(w))
+        delayed(get_intermediate_filemaps)(instr_list[idx], outstr_list[idx]) for idx in range(len(outstr_list)))
     
     end = time.time() # timeit.timeit()
     print('TIME taken to merge filtered block coords and presence:', end-start)
@@ -1182,7 +1198,7 @@ if __name__ == "__main__":
 
     Parallel(n_jobs=w, prefer="threads")(
         delayed(get_intermediate_filemaps)(instr_list[idx], '{}{}'.format(results_dir, outstr_list[idx]))
-            for idx in range(w))
+            for idx in range(len(outstr_list)))
     end = time.time() # timeit.timeit()
     print('TIME taken to generate variant fasta sequences:', end-start)
 

@@ -149,7 +149,7 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
     tup_uubb current_coords;
     tup_uub current_feature_coords, null_coords = make_tuple(0,0,false);
     
-    string feature_tuple_string, filename, opstr_coords, opstr_bool, split_no_str, prev_tuple_string, opstr_block_idx;
+    string feature_tuple_string, filename, opstr_coords, opstr_bool, split_no_str, prev_tuple_string, opstr_block_idx, prev_metablock, curr_metablock;
     char split_no_char;
 
     map<string, list< tup_uub > > metablock_tuple_idx_coords_map;
@@ -280,6 +280,22 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
                     if(it_block_coords_map != block_idx_coords_map.end()){
                         // block_idx encountered before: check if the list length is adjusted for missing values
                         // missing_entries = assembly_idx_offset - (it_block_coords_map->second).size();
+
+                        if(it_block_presence_map == block_presence_map.end()){
+                            cout<<"\nERROR!!! BLOCK DETECTION ANAMOLY 1!!! "<<feature_tuple_string<<" "<<assembly_idx_offset<<"\n";
+                            return;
+                        }
+
+                        if( (it_block_presence_map->second).size() >= assembly_idx_offset+1 ){
+                            cout<<"\nERROR!!! BLOCK PRESENCE ANAMOLY 2!!! "<<feature_tuple_string<<" "<<assembly_idx_offset<<" ";
+                            cout<< (it_block_presence_map->second).size() << " " << prev_tuple_string<<"\n";
+                            for(it_block_presence_map = block_presence_map.begin(); it_block_presence_map != block_presence_map.end(); it_block_presence_map++){
+                                cout<<"\t"<< it_block_presence_map->first ;
+                            }
+                            cout<<'\n';
+                            return;
+                        }
+
                         missing_entries = assembly_idx_offset - (it_block_presence_map->second).size();
                         while(missing_entries--){
                             // (it_block_coords_map->second).push_back(null_coords);
@@ -290,6 +306,12 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
                         (it_block_presence_map->second).push_back(true);
                     }
                     else{
+
+                        if(it_block_presence_map != block_presence_map.end()){
+                            cout<<"\nERROR!!! BLOCK DETECTION ANAMOLY 2!!! "<<feature_tuple_string<<" "<<assembly_idx_offset<<"\n";
+                            return;
+                        }
+
                         list< tup_uub > new_feature_coords_list;
                         vector< bool > new_bool_vector;
                         missing_entries = assembly_idx_offset;
@@ -304,10 +326,12 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
                         block_idx_coords_map[block_idx] = new_feature_coords_list;
                         block_presence_map[block_idx] = new_bool_vector;
                     }
+                    prev_tuple_string = feature_tuple_string;
                 }
             }
 
             cout<<"  "<<metablock_tuple_idx_coords_map.size()<<"  "<<block_idx_coords_map.size();
+            cout<<"  "<<metablock_presence_map.size()<<"  "<<block_presence_map.size();
         }
         cout<<"\n";
 
@@ -327,6 +351,12 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
     string sv_coords_name, sv_bool_name;
     sv_size2 = 0;
     opstr_bool = "";
+    prev_metablock = "0_0";
+    bool is_first = true;
+    
+    ofstream { (filtered_feature_dir + "metablock_coords_" + partition_idx_str).c_str() };
+    ofstream { (filtered_feature_dir + "metablock_presence_absence_" + partition_idx_str).c_str() };
+
     for(it_metablock_coords_map = metablock_tuple_idx_coords_map.begin();
             it_metablock_coords_map != metablock_tuple_idx_coords_map.end() && it_metablock_presence_map != metablock_presence_map.end();
             it_metablock_coords_map++, it_metablock_presence_map++){
@@ -340,8 +370,11 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
         // split_no_str = (it_metablock_coords_map->first).substr(split_pos+1);
         // is_new_metablock = (split_no_str=="0");
 
-        split_no_char = (it_metablock_coords_map->first)[split_pos+1];
-        is_new_metablock = (split_no_char=='0');
+        // split_no_char = (it_metablock_coords_map->first)[split_pos+1];
+        curr_metablock = (it_metablock_coords_map->first).substr(0, split_pos);
+
+        // is_new_metablock = (split_no_char=='0');
+        is_new_metablock = (curr_metablock!=prev_metablock) || is_first;
 
         // opstr_coords = it_metablock_coords_map->first + ",";
         // if(is_new_metablock)
@@ -359,8 +392,12 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
                 outFile.close();
                 opstr_bool = "";
             }
-            sv_bool_name = (it_metablock_coords_map->first).substr(0, split_pos) + ",";
+            // sv_bool_name = (it_metablock_coords_map->first).substr(0, split_pos) + ",";
+            sv_bool_name = curr_metablock + ",";
         }
+
+        prev_metablock = curr_metablock;
+
         opstr_coords = "";
         // opstr_bool = "";
 
@@ -416,6 +453,8 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
         outFile << opstr_coords;
         outFile.close();
 
+        is_first=false;
+
         // if(is_new_metablock){
         //     opstr_bool.pop_back();
         //     opstr_bool += "\n";
@@ -437,6 +476,9 @@ void load_and_aggregate_features(string filtered_feature_dir, unsigned long asse
 
     cout<<"Metablocks saved\n";
 
+
+    ofstream { (filtered_feature_dir + "block_coords_" + partition_idx_str).c_str() };
+    ofstream { (filtered_feature_dir + "block_presence_absence_" + partition_idx_str).c_str() };
 
     it_block_presence_map = block_presence_map.begin();
     opstr_block_idx = "";
@@ -817,6 +859,7 @@ void load_aggregate_and_filter_paired_features( string paired_feature_dir, unsig
 
     it_assembly_partitioned_presence_outerlist = assembly_partitioned_paired_feature_presence_outerlist.begin();
     it_assembly_partitioned_separation_outerlist = assembly_partitioned_paired_feature_separation_outerlist.begin();
+    start_assembly_idx=0;
 
     while(it_assembly_partitioned_presence_outerlist != assembly_partitioned_paired_feature_presence_outerlist.end()){
 
@@ -859,6 +902,24 @@ void load_aggregate_and_filter_paired_features( string paired_feature_dir, unsig
 
         it_assembly_partitioned_presence_outerlist++;
         it_assembly_partitioned_separation_outerlist++;
+    }
+
+    while(start_assembly_idx < assembly_count){
+        end_assembly_idx = start_assembly_idx + assemblies_per_partition - 1;
+        if(end_assembly_idx >= assembly_count)
+            end_assembly_idx = assembly_count-1;
+
+        // ofstream{ (paired_feature_dir +  to_string(start_assembly_idx) + "_" + to_string(end_assembly_idx) + "_" + partition_idx_str + "_separation").c_str() };
+        // ofstream{ (paired_feature_dir +  to_string(start_assembly_idx) + "_" + to_string(end_assembly_idx) + "_" + partition_idx_str + "_presence").c_str() };
+
+        outFile.open((paired_feature_dir +  to_string(start_assembly_idx) + "_" + to_string(end_assembly_idx) + "_" + partition_idx_str + "_separation").c_str(),
+                        ios::binary|ios::app);
+        outFile.close();
+        outFile.open((paired_feature_dir +  to_string(start_assembly_idx) + "_" + to_string(end_assembly_idx) + "_" + partition_idx_str + "_presence").c_str(),
+                        ios::binary|ios::app);
+        outFile.close();
+
+        start_assembly_idx += assemblies_per_partition;
     }
 
     cout<<"load_aggregate_and_filter_paired_features ended: "<<paired_feature_dir<<" "<<assembly_count<<" "<<min_presence_count<<" "<<partition_idx_str<<"\n";
