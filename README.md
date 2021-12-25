@@ -1,23 +1,37 @@
 # PRAWNS: Pan-genome representation of whole genomes tool
 
-Given a collection of whole genomes for the closely related isolates (e.g. from a bacterial species or species complex), the tool generates an efficient pan-genome representation for the corresponding isolates. The input genomes could be draft assemblies or complete genomes. The generated pan-genome provides a concise list of structural variants identified across these isolates, which can then be used in a downstream analysis. In addition to the detection of structural variants, the pan-genome also locates the variants that are collocated across multiple isolates—such paired occurrences and the separation between the corresponding structural variants are also provided which can aide the downstream analysis.
+PRAWNS is a fast and scalable tool that generates an efficient representation of closely related whole genomes to provide a concise list of genomic features or sequence entities shared by a user-specified fraction of the genomes.
 
-### Dependencies
+It relies on two main algorithmic innovations:
+1. Locating the <b>*conserved regions*</b> shared across multiple genomes.\
+*Metablocks* may contain inexact matches, and reduce the number of features to be considered by an order of magnitude over individual exact-matching *blocks*.
+2. We introduce a new type of genomic feature called <b>*paired regions*</b>---these are pairs of *conserved regions* collocated in multiple genomes but that may vary in distance between each other within different genomes.\
+Using such paired features, scientists can assess the influence of the collocation of genomic segments on phenotypes.
+
+PRAWNS can be parallelized over multiple threads and uses disk-based storage, enabling it to scale to thousands of genomes.\
+The input genomes could be draft asemblies or complete (circularized) genomes; these could represent closely related isolates, including bacterial species or species complex, fungal genomes, viruses, or even mobile elements like plasmid families.
+
+PRAWNS fills up a gap in the current bioinformatics toolkit available to scientists for a holistic large-scale whole-genome population genomics and comparative genomics.\
+PRAWNS provides a mechanism for large-scale association studies, including assessing the association of bacterial genomic features with phenotypes, such as antibiotic resistance.
+
+<!-- Given a collection of whole genomes for the closely related isolates (e.g. from a bacterial species or species complex), the tool generates an efficient pan-genome representation for the corresponding isolates. The input genomes could be draft assemblies or complete genomes. The generated pan-genome provides a concise list of structural variants identified across these isolates, which can then be used in a downstream analysis. In addition to the detection of structural variants, the pan-genome also locates the variants that are collocated across multiple isolates—such paired occurrences and the separation between the corresponding structural variants are also provided which can aide the downstream analysis. -->
+
+## Dependencies
 1. Python 3.5 or later
 2. C++11 or later
 
-### Installation:
+## Installation:
 ```bash
 git clone https://github.com/KiranJavkar/PRAWNS.git
 cd PRAWNS
 make
 ```
 
-### Running the command:
+## Running the command:
 ```
 python run_prawns.py input.csv
 ```
-Where ```input.csv``` comprises of upto 3 columns: assembly_name, fasta_file_path, oriented_links_file_path (optional, needed if ```--use_oriented_links True```)
+Where ```input.csv``` comprises of upto 3 columns: (i) sample name (assembly/genome) (ii) fasta file path (iii) contig orientations file path (optional, needed if ```--use_oriented_links True```)
 
 ```
 -bash-4.2$ python run_prawns.py -h
@@ -37,6 +51,8 @@ optional arguments:
                         Number of cores to be used (default: 8)
   -K [KMER_LEN], --kmer_len [KMER_LEN]
                         Length of kmers (default: 25)
+  -o [OUTDIR], --outdir [OUTDIR]
+                        Output directory
   -p [MIN_PERC], --min_perc [MIN_PERC]
                         Minimum % of genomes a variant would be present in
                         (default: 5.0)
@@ -52,13 +68,17 @@ optional arguments:
                         Maximum number of mismatches permitted to allow merger
                         and extension of metablocks across the genomes
                         (default: 25)
+  -N [MAX_NEIGHBOR_DISTANCE], --max_neighbor_distance [MAX_NEIGHBOR_DISTANCE]
+                        Maximum separation between neighboring blocks for
+                        collocated blocks (components) identification
+                        (default: 5)
   -s [MIN_BLOCK_SIZE], --min_block_size [MIN_BLOCK_SIZE]
-                        Smallest size of a block that is to be retained as a
-                        structural variant (default: 50)
-  -R [MAX_PAIRING_RANGE], --max_pairing_range [MAX_PAIRING_RANGE]
-                        Maximum number of bases between the structural
-                        variants from a genome for paired analysis (default:
-                        100)
+                        Smallest size of a block retained as a conserved
+                        region (default: 50)
+  -S [MAX_INTERVARIANT_SEPARATION], --max_intervariant_separation [MAX_INTERVARIANT_SEPARATION]
+                        Maximum number of bases between adjacent conserved
+                        regions from a genome to get paired regions (default:
+                        50)
   -m [MEM], --mem [MEM]
                         Upper limit for RAM memory usage. Can be in
                         mb/MB/gb/GB/tb/TB (case insensitive), default unit is
@@ -69,21 +89,71 @@ optional arguments:
                         (default: 4M)
 ```
 
-The oriented links can be obtained by running [MetaCarvel](https://github.com/marbl/MetaCarvel) with `--keep True`. In addition to this, we recommend using `--bsize` argument to have higher confidence for the oriented links obtained for the sequenced isolate under consideration.
+For the contig orientations files, we rely on the format used by [MetaCarvel](https://github.com/marbl/MetaCarvel) to represent the oriented links file.\
+The oriented links can be generated by running MetaCarvel with `--keep True`. We recommend using `--bsize` argument to have higher confidence for the oriented links obtained for the sequenced isolate under consideration.
 
-### Description of the output files:
-+ --TO BE UPDATED--
+## Description of the output files:
+### *Conserved regions*
+The *conserved regions* are represented in the form of *metablocks* and *retained blocks*. *Metablocks* are the *conserved regions* obtained by aggregating the *collocated blocks* that have a consistent ordering over multiple genomes (refer PRAWNS manuscript for detailed description of *metablocks*). *Retained blocks* are those that are at least `min_block_size` long and were not aggregated into a metablock (in some genome).
+
+The conserved regions are reported via two comma-separated files:
+1. `*_coords.csv` contains the coordinates and strand (forward: 1, reverse: 0) on which the conserved region is present in the corresponding genome.\
+If the conserved region is absent in a genome, it would be represented by the tuple 0,0,0.
+3. `*_presence_absence.csv` denotes the binary presence (1) or absence (0) for the respective conserved region for the corresponding genome.
+
+Additionally, the `metablocks.fasta` and `retained_blocks.fasta` files provide the conserved region sequences (as in the genome where the respective conserved regions were first encounted) in FASTA format.
+
+#### *Metablocks*
+The *metablock* files---`metablock_coords.csv` and `metablock_presence_absence.csv`---have their first column representing the *metablock index*, and the second column denoting the length of the *metablock*. The subsequent columns denote the coordinates-strand tuples or presence/absence respectively.\
+The *metablock index* is composed of three parts: *(component id)\_(new metablock id)\_(split number)*. The `metablock_coords.csv` file will denote the entire *metablock index*, whereas `metablock_presence_absence.csv` not use the *split number*.
+
+The *split number* is 0 by default, and would be non-zero only in the case of *composite metablocks*---this refers to a situation where a metablock is spanned across multiple contigs, and requires contig orientation information obtained via scaffolding.\
+For instance, say a metablock spanned across 2 contigs in a genome (draft assembly) and is on just one contig in other genomes (whichever other genome contains it). In such case, the two constituent *metablocks* (separated by contig boundaries) would be reported; to denote fragmentation of a longer composite *metbalock*, the *split number* for one constituent *metablock* would be 0 while the other one will have 1. E.g. `3_2_0` and `3_2_1`.\
+Observe that the binary presence-absence for constituent *metablocks* is the same and, hence, the *split number* is not required to report the presence/absence of the conserved regions
+
+The information about the *component id* and *new metablock id* is not important for downstream analysis, as they are implicit to PRAWNS' internal computations. However, it is worth noting that all *metablocks* with the same *component id* are arising from the same *component of collocated blocks* and would, hence, be located in the proximity one another in their corresponding genomes.
+
+#### *Retained blocks*
+Similar to *metablocks*, the *block* files---`retained_block_coords.csv` and `retained_block_presence_absence.csv`---have the *block index* in the first column and its length in the second column. The subsequent columns denote the coordinates-strand tuples or presence/absence respectively.\
+Unlike the *metablocks*, the *block index* is a single number assigned by PRAWNS internally.
+
+If a *block* has been merged into a *metablock* and the corresponding *metablock* has been identified in a genome, the corresponding *retained block* would be deemed absent in the respective genome.\
+Therefore, the entries would only denote the genomes in which the *metablocks* were not detected in their entirity but some of the constituent longer *blocks* were present, and the longer *blocks* which were present isolated (didn't have multiple collocated *blocks* shared over several genomes) and could not be aggregated into a *metablock*.
+
+
+### *Paired regions*
+The *paired regions* denote the conserved regions collocated in the given genomes. They provide the means to assess the impact of the genomic context between conserved regions in the context of some phenotype of interest.
+
+The paired regions are presented using two comma-separated files:
+1. `intrapair_separation.csv` provides the separation (number of nucleotides) between the collocated conserved regions.\
+A negative separation suggests an overlap between the adjoining conserved regions (number of overlapping nucleotides or the nucleotides shared between the adjoining conserved regions) in the corresponding genome/s. If the paired region is missing in a genomes, the associated value for the separation would be 0.
+2. `pair_presence_absence.csv` contains the binary presence (1) or absence (0) of the paired regions in the respective genomes.
+
+In both the paired regions files, the first column denotes the *pair index*, and the subsequent columns provide the separation or presence/absence.\
+The *pair index* follows the format: *(conserved region 1 index)*|*(conserved region 2 index)*|*(conserved region 1 strand)*|*(conserved region 2 strand)*\
+Note that either of the two conserved regions could be *metablocks* or *retained blocks*; the type of conserved region forming the pair can be inferred from the respective *conserved region index* format. Also observe that the same pair of conserved regions but with different relative orientations would result in distint paired regions with distint *paired region indices*.
+
+<!-- + --TO BE UPDATED--
 - metablock_coords
 - metablock_presence_absence
 - similarly for block
 - pair_presence_absence
-- intrapair_separation
+- intrapair_separation -->
+
+## Additional utility output
+
+The `sv_coverages.txt` file provides the coverage of each genome using the *conserved regions*.\
+It is a comma-separated file with a header and three columns; the columns correspond to sample name, total genome coverage using the conserved regions, and the number of conserved regions detected within the genome, respectively.
+
+**Extracting a specific conserved region sequence using the coordinates from a particular genome**\
+PRAWNS appends all contigs from a multi-fasta file and creates a single coordinate system for each genome. The conserved regions are located using the same coordinate system. The coordinates marking the contig ends can be found in the `contig_lengths` output directory; the file names correspond to the sample number (0-indexed) based on the sample sequence provide in the `input.csv` file.
 
 To get the exact fasta sequence of a variant from a particular genome, run the following command:
-`./kmer_variant_coords_fasta_display.o <PRAWNS_results_dir>/all_assembly_filepaths <genome_number(0-indexed)> <start_coordinate(from the corresponding variant's csv file)> <end_coordinate>`
+`./kmer_variant_coords_fasta_display.o <PRAWNS_results_dir>/all_assembly_filepaths <sample_number(0-indexed)> <start_coordinate(from the corresponding conserved region's coords csv file)> <end_coordinate>`
 
 E.g.: `./kmer_variant_coords_fasta_display.o PRAWNS_results/all_assembly_filepaths.txt 0 2818695 2818729`
 
-<!-- If you use PRAWNS for your work, please cite it: -->
+## Citation
+If you use PRAWNS for your work, please cite it: the manuscript is under submission; until published, please cite this GitHub repository.
 
 NOTE: This tool is still under active development and may produce errors while running. Please report any error encountered as a github issue so that we can fix it during the development. For any questions, please email kjavkar@umd.edu
