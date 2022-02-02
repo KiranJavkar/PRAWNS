@@ -35,12 +35,12 @@ Where ```input.csv``` comprises of upto 3 columns: (i) sample name (assembly/gen
 
 ```
 -bash-4.2$ python run_prawns.py -h
-usage: run_prawns.py [-h] -i INPUT [-n [NCORES]] [-K [KMER_LEN]] [-o [OUTDIR]]
-                     [-p [MIN_PERC]] [-l [USE_ORIENTED_LINKS]]
-                     [-b [MIN_GROUP_BLOCKS]] [-M [MAX_METABLOCK_MISMATCH]]
-                     [-N [MAX_NEIGHBOR_DISTANCE]] [-s [MIN_BLOCK_SIZE]]
-                     [-S [MAX_INTERVARIANT_SEPARATION]] [-m [MEM]]
-                     [-g [GENOME_LEN]]
+usage: PRAWNS [-h] -i INPUT [-n [NCORES]] [-K [KMER_LEN]] [-o [OUTDIR]]
+              [-p [MIN_PERC]] [-l [USE_ORIENTED_LINKS]]
+              [-b [MIN_GROUP_BLOCKS]] [-M [MAX_METABLOCK_MISMATCH]]
+              [-N [MAX_NEIGHBOR_DISTANCE]] [-s [MIN_BLOCK_SIZE]]
+              [-S [MAX_INTERVARIANT_SEPARATION]] [-m [MEM]] [-g [GENOME_LEN]]
+              [-V]
 
 PRAWNS: Pan-genome representation of whole genomes tool
 
@@ -88,6 +88,7 @@ optional arguments:
                         Average genome length. Can be in k/K/m/M/g/G (case
                         insensitive), default unit is M, i.e. 1x10^6 nt.
                         (default: 4M)
+  -V, --version         show program's version number and exit
 ```
 
 For the contig orientations files, we rely on the format used by [MetaCarvel](https://github.com/marbl/MetaCarvel) to represent the oriented links file.\
