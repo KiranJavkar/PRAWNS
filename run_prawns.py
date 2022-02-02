@@ -29,6 +29,8 @@ from scipy.sparse import csr_matrix, dok_matrix
 from scipy.sparse.csgraph import minimum_spanning_tree
 from joblib import Parallel, delayed, parallel_backend
 
+from __init__ import __version__
+
 
 def read_file(filepath):
     f = open(filepath, 'r')
@@ -475,7 +477,7 @@ def save_component_groups(comp_start_idx, comp_end_idx, filename):
 if __name__ == "__main__":
 
     # parser = argparse.ArgumentParser(description='PRAWNS: Pan-genome RepresentAtion of Whole geNomeS tool')
-    parser = argparse.ArgumentParser(description='PRAWNS: Pan-genome representation of whole genomes tool')
+    parser = argparse.ArgumentParser(description='PRAWNS: Pan-genome representation of whole genomes tool', prog='PRAWNS')
     parser.add_argument('-i', '--input', required=True, help="Input csv file")
     parser.add_argument('-n', '--ncores', type=int, nargs='?', default=8, help="Number of cores to be used (default: 8)")
     parser.add_argument('-K', '--kmer_len', type=int, nargs='?', default=25, help="Length of kmers (default: 25)")
@@ -503,6 +505,7 @@ if __name__ == "__main__":
                                         "Can be in mb/MB/gb/GB/tb/TB (case insensitive), default unit is MB. (default: 36000MB)")
     parser.add_argument('-g', '--genome_len', nargs='?', default="4M", help="Average genome length.  " +
                                         "Can be in k/K/m/M/g/G (case insensitive), default unit is M, i.e. 1x10^6 nt. (default: 4M)")
+    parser.add_argument('-V', '--version', action='version', version='%(prog)s '+__version__)
 
     args = parser.parse_args()
 
