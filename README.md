@@ -172,6 +172,16 @@ E.g.: `./kmer_variant_coords_fasta_display.o PRAWNS_results/all_assembly_filepat
 `./kmer_variant_coords_fasta_display.o test_results/all_assembly_filepaths.txt 4 3892906 3893510`
 
 ## Citation
-If you use PRAWNS for your work, please cite it: the manuscript is under submission; until published, please cite this GitHub repository.
+If you use PRAWNS for your work, please cite it: the manuscript is under submission; until published, please cite this GitHub repository:
+```
+@misc{Javkar2022,
+  author = {Javkar, Kiran and Rand, Hugh and Strain, Errol and Pop, Mihai},
+  title = {PRAWNS: Pan-genome representation of a large number of whole genomes},
+  year = {2022},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/KiranJavkar/PRAWNS}}
+}
+```
 
 NOTE: This tool is still under active development and may produce errors while running. Please report any error encountered as a github issue so that we can fix it during the development. For any questions, please email kjavkar@umd.edu
