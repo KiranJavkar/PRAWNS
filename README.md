@@ -1,8 +1,8 @@
 # PRAWNS: Pan-genome representation of whole genomes tool
 
-PRAWNS is a fast and scalable tool that generates an efficient representation of closely related whole genomes to provide a concise list of genomic features or sequence entities shared by a user-specified fraction of the genomes.
+PRAWNS is a fast and scalable tool that generates an efficient representation of closely related whole genomes to provide a concise list of genomic features or sequence entities shared by a user-specified fraction of the genomes. It is designed specifically for large-scale genomic studies like population genomics and comparative genomics with an emphasis on getting insights into the microbial genome biology.
 
-<ins>It relies on two main algorithmic innovations:</ins>
+<ins>PRAWNS relies on two main algorithmic innovations:</ins>
 1. Locating the <b>*conserved regions*</b> shared across multiple genomes.\
 *Metablocks* may contain inexact matches, and reduce the number of features to be considered by an order of magnitude over individual exact-matching *blocks*.
 2. We introduce a new type of genomic feature called <b>*paired regions*</b>---these are pairs of *conserved regions* collocated in multiple genomes but that may vary in distance between each other within different genomes.\
