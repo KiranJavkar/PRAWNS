@@ -19,12 +19,17 @@ PRAWNS provides a mechanism for large-scale association studies, including asses
 ## Dependencies
 1. Python 3.5 or later
 2. C++11 or later
+3. ```requirements.txt``` enlists the python package versions on which the script was tested (we expect the script to be supported by the later versions as well)
 
 ## Installation:
 ```bash
 git clone https://github.com/KiranJavkar/PRAWNS.git
 cd PRAWNS
 make
+```
+Run the following command to ensure that all required Python libraries are installed:
+```
+pip install -r requirements.txt
 ```
 
 ## Running the command:
