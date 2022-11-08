@@ -176,8 +176,20 @@ To get the exact fasta sequence of a variant from a particular genome, run the f
 E.g.: `./kmer_variant_coords_fasta_display.o PRAWNS_results/all_assembly_filepaths.txt 0 2818695 2818729` \
 `./kmer_variant_coords_fasta_display.o test_results/all_assembly_filepaths.txt 4 3892906 3893510`
 
+
+### Distance matrix for population structure adjustment
+
+The *conserved regions* can be used to estimate a distance matrix for the given genomes which can then be used for population structure adjustments in subsequent analyses.
+
+An auxiliary script, `get_distance_matrix_and_newick_tree.py`, has been provided for the distance matrix computation. For *N* genomes, the distance matrix will be a *N*x*N* matrix, where the genome indices (ordering) is same as that provided in the input csv file used for running PRAWNS. This script can be run as: \
+`python get_distance_matrix_and_newick_tree.py -i <prawns_input.csv> -d <PRAWNS_results_dir>`
+
+Additionally, this script generates a phylogenetic tree plot, a newick tree for the same, and clusters the genomes into groups of genomes denoting the underlying population structure likely to be exhibited by the given genomes. These groups are represented by distinct group labels (which are numbers starting with 0) and all genomes within the same group will have the same group label.
+These group labels can been seen in the phylogenetic tree plot and the newick tree.
+
 ## Citation
-If you use PRAWNS for your work, please cite it: the manuscript is under submission; until published, please cite this GitHub repository:
+If you use PRAWNS for your work, please cite it: the manuscript is under submission;
+until published, please cite this GitHub repository:
 ```
 @misc{Javkar2022,
   author = {Javkar, Kiran and Rand, Hugh and Strain, Errol and Pop, Mihai},
@@ -186,6 +198,14 @@ If you use PRAWNS for your work, please cite it: the manuscript is under submiss
   publisher = {GitHub},
   journal = {GitHub repository},
   howpublished = {\url{https://github.com/KiranJavkar/PRAWNS}}
+}
+```
+Alternatively, you can cite the PhD thesis which contains this work as well:
+```
+@phdthesis{Javkar2022thesis,
+  title={Algorithms for scalable and efficient population genomics and metagenomics},
+  author={Javkar, Kiran Gajanan},
+  year={2022}
 }
 ```
 
