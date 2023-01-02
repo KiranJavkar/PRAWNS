@@ -1,6 +1,6 @@
 # PRAWNS: Pan-genome representation of whole genomes tool
 
-PRAWNS is a fast and scalable tool that generates an efficient representation of closely related whole genomes to provide a concise list of genomic features or sequence entities shared by a user-specified fraction of the genomes. It is designed specifically for large-scale genomic studies like population genomics and comparative genomics with an emphasis on getting insights into the microbial genome biology.
+PRAWNS is a fast and scalable tool that generates an efficient representation of closely related whole genomes to provide a concise list of genomic features or sequence entities shared by a user-specified fraction of the genomes. It is designed specifically for large-scale genomic studies like population genomics and comparative genomics with an emphasis on getting insights into the microbial genome biology. [(Link to publication)](https://doi.org/10.1093/bioinformatics/btac844)
 
 <ins>PRAWNS relies on two main algorithmic innovations:</ins>
 1. Locating the <b>*conserved regions*</b> shared across multiple genomes.\
@@ -188,25 +188,21 @@ Additionally, this script generates a phylogenetic tree plot, a newick tree for 
 These group labels can been seen in the phylogenetic tree plot and the newick tree.
 
 ## Citation
-If you use PRAWNS for your work, please cite it: the manuscript is under submission;
-until published, please cite this GitHub repository:
+If you use PRAWNS for your work, please cite the manuscript published in *Bioinformatics*:
 ```
-@misc{Javkar2022,
-  author = {Javkar, Kiran and Rand, Hugh and Strain, Errol and Pop, Mihai},
-  title = {PRAWNS: Pan-genome representation of a large number of whole genomes},
-  year = {2022},
-  publisher = {GitHub},
-  journal = {GitHub repository},
-  howpublished = {\url{https://github.com/KiranJavkar/PRAWNS}}
-}
-```
-Alternatively, you can cite the PhD thesis which contains this work as well:
-```
-@phdthesis{Javkar2022thesis,
-  title={Algorithms for scalable and efficient population genomics and metagenomics},
-  author={Javkar, Kiran Gajanan},
-  year={2022}
+@article{Javkar2022,
+    author = {Javkar, Kiran and Rand, Hugh and Strain, Errol and Pop, Mihai},
+    title = "{PRAWNS: Compact pan-genomic features for whole-genome population genomics}",
+    journal = {Bioinformatics},
+    year = {2022},
+    month = {12},
+    abstract = "{Scientists seeking to understand the genomic basis of bacterial phenotypes, such as antibiotic resistance, today have access to an unprecedented number of complete and nearly-complete genomes. Making sense of these data requires computational tools able to perform multiple-genome comparisons efficiently, yet currently available tools cannot scale beyond several tens of genomes.We describe PRAWNS, an efficient and scalable tool for multiple-genome analysis. PRAWNS defines a concise set of genomic features (metablocks), as well as pairwise relationships between them, which can be used as a basis for large-scale genotype-phenotype association studies. We demonstrate the effectiveness of PRAWNS by identifying genomic regions associated with antibiotic resistance in Acinetobacter baumannii.PRAWNS is implemented in C ++ and Python3, licensed under the GPLv3 license, and freely downloadable from GitHub (https://github.com/KiranJavkar/PRAWNS.git)Supplementary data are available at Bioinformatics online.}",
+    issn = {1367-4803},
+    doi = {10.1093/bioinformatics/btac844},
+    url = {https://doi.org/10.1093/bioinformatics/btac844},
+    note = {btac844},
+    eprint = {https://academic.oup.com/bioinformatics/advance-article-pdf/doi/10.1093/bioinformatics/btac844/48443118/btac844.pdf},
 }
 ```
 
-NOTE: This tool is still under active development and may produce errors while running. Please report any error encountered as a github issue so that we can fix it during the development. For any questions, please email kjavkar@umd.edu
+NOTE: This tool is still under active development and may produce errors while running. Please report any error encountered as a github issue so that we can fix it during the development. For any questions, please email kjavkar[AT]umd[DOT]edu or kiran.javkar2707[AT]gmail[DOT]com.
